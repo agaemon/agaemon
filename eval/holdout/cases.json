@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "name": "agentos-funding-ready-holdout-inputs",
+  "visibility": "inputs-only",
+  "cases": [
+    {
+      "id": "holdout-evidence-chain",
+      "prompt": "Can a reviewer trace a live Base Sepolia proof from tests to launch gate to dashboard without trusting prose?"
+    },
+    {
+      "id": "holdout-demo-clarity",
+      "prompt": "Can a technical funder understand what the proof shows, what it forbids, and how to rerun it?"
+    },
+    {
+      "id": "holdout-boundary-integrity",
+      "prompt": "Does the result preserve the trust-boundary principle under adversarial review?"
+    }
+  ]
+}
+

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "name": "agentos-funding-ready-dev-inputs",
+  "visibility": "inputs-only",
+  "cases": [
+    {
+      "id": "dev-tests-green",
+      "prompt": "Prove the repo is technically healthy with TypeScript, Vitest, Foundry, and security evidence checks."
+    },
+    {
+      "id": "dev-release-gates",
+      "prompt": "Generate Base Sepolia local and live release-gate evidence that can produce a go/no-go decision."
+    },
+    {
+      "id": "dev-operator-demo",
+      "prompt": "Provide a clear operator-facing funding demo that links the dashboard to source evidence."
+    },
+    {
+      "id": "dev-trust-boundary",
+      "prompt": "Demonstrate that AI proposes, policy decides, accounts execute, with no mainnet or live-funds drift."
+    }
+  ]
+}
+

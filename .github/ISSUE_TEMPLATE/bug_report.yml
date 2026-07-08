@@ -1,0 +1,63 @@
+name: Bug Report
+description: Report a reproducible AgentOS bug with local, testnet, or saved evidence.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Safety boundary
+      options:
+        - label: I did not include private keys, seed phrases, RPC secrets, bearer tokens, or live wallet material.
+          required: true
+        - label: This report does not depend on unsupported mainnet or live-funds behavior.
+          required: true
+        - label: I checked whether this should be reported privately under SECURITY.md.
+          required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What failed, and why does it matter?
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - Solidity contracts
+        - Foundry script
+        - Runtime CLI
+        - Verifier or evidence artifact
+        - Operator dashboard
+        - SDK or integration API
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: List exact commands, saved artifact paths, or testnet steps.
+      placeholder: |
+        1. Run ...
+        2. Observe ...
+        3. Expected ...
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Include non-secret logs, verifier output, commit hashes, or release status.
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Node version, Foundry version, OS, network, and relevant non-secret env names.
+    validations:
+      required: false

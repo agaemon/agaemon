@@ -1,0 +1,311 @@
+import { readFileSync } from "node:fs";
+
+import { createPublicClient, createWalletClient, getAddress, http, isAddress } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { baseSepolia } from "viem/chains";
+
+import {
+  AGENT_ACCOUNT_ABI,
+  createDelegateTransaction,
+  createPauseTransaction,
+  createUnpauseTransaction,
+  resolveAgentAccountOperation,
+} from "../../agentCore/account.js";
+import { normalizePrivateKey } from "../../base/execution.js";
+import { readDeploymentManifest } from "../../base/deploymentManifest.js";
+import {
+  isDirectRun,
+  parseValues,
+  requireBoolean,
+  requireNumber,
+  requireObject,
+  requireString,
+  runInjectedOrDefault,
+  validateReceiptEvidence,
+  validateTransactionEvidence,
+} from "./runnerShared.js";
+import type { AgentCoreRunnerOptions } from "./runnerShared.js";
+
+const DEFAULT_MANIFEST_PATH = "deployments/base-sepolia/latest.json";
+
+interface AgentAccountReadClient {
+  readContract(parameters: {
+    address: `0x${string}`;
+    abi: typeof AGENT_ACCOUNT_ABI;
+    functionName:
+      | "owner"
+      | "paused"
+      | "capabilities"
+      | "policyEngine"
+      | "reputationRegistry"
+      | "reputation"
+      | "delegates";
+    args?: readonly [`0x${string}`];
+  }): Promise<unknown>;
+}
+
+export interface AgentAccountCliArgs {
+  send: boolean;
+  manifestPath: string;
+  delegate?: string | undefined;
+  pause: boolean;
+  unpause: boolean;
+}
+
+export type AgentAccountCliOptions = AgentCoreRunnerOptions<AgentAccountCliArgs>;
+
+if (isAgentAccountDirectRun(import.meta.url, process.argv)) {
+  await runAgentAccountCli();
+}
+
+export async function runAgentAccountCli(options: AgentAccountCliOptions = {}): Promise<void> {
+  await runInjectedOrDefault(options, parseAgentAccountCliArgs, main, validateAgentAccountReport);
+}
+
+export function parseAgentAccountCliArgs(argv: readonly string[]): AgentAccountCliArgs {
+  const values = parseValues(argv, ["--manifest", "--delegate"], ["--send", "--pause", "--unpause"]);
+  const delegate = values.options.get("--delegate");
+  const pause = values.booleans.has("--pause");
+  const unpause = values.booleans.has("--unpause");
+  const operationCount = Number(delegate !== undefined) + Number(pause) + Number(unpause);
+  if (operationCount > 1) throw new Error("Choose only one operation: --delegate, --pause, or --unpause");
+  return {
+    send: values.booleans.has("--send"),
+    manifestPath: values.options.get("--manifest") ?? DEFAULT_MANIFEST_PATH,
+    delegate,
+    pause,
+    unpause,
+  };
+}
+
+export function isAgentAccountDirectRun(moduleUrl: string, argv: readonly string[]): boolean {
+  return isDirectRun(moduleUrl, argv);
+}
+
+async function main(): Promise<void> {
+  loadDotEnv(".env");
+
+  const shouldSend = process.argv.includes("--send");
+  const manifestPath = readFlag("--manifest") ?? DEFAULT_MANIFEST_PATH;
+  const manifest = await readDeploymentManifest(manifestPath);
+  const rpcUrl = process.env[manifest.rpcUrlEnv];
+  if (rpcUrl === undefined || rpcUrl.length === 0) throw new Error(`${manifest.rpcUrlEnv} is required`);
+
+  const agent = manifest.contracts.agentAccount;
+  const delegate = readAddressFlag("--delegate");
+  const envDelegate = readOptionalEnvAddress("AGENT_DELEGATE");
+  const shouldPause = process.argv.includes("--pause");
+  const shouldUnpause = process.argv.includes("--unpause");
+  const operation = resolveAgentAccountOperation({
+    delegate,
+    envDelegate,
+    pause: shouldPause,
+    send: shouldSend,
+    unpause: shouldUnpause,
+  });
+
+  const publicClient = createPublicClient({ chain: baseSepolia, transport: http(rpcUrl) });
+  const chainId = await publicClient.getChainId();
+  if (chainId !== manifest.chainId) throw new Error(`Connected to chain ${chainId}, expected ${manifest.chainId}`);
+
+  const state = await readAgentState(publicClient, manifest, delegate ?? envDelegate);
+  const baseOutput = {
+    mode: shouldSend ? "send" : "dry-run",
+    chainId,
+    agent,
+    ...state,
+  };
+
+  const transaction =
+    operation?.name === "delegate"
+      ? createDelegateTransaction({ agent, delegate: operation.delegate })
+      : operation?.name === "pause"
+        ? createPauseTransaction({ agent })
+        : operation?.name === "unpause"
+          ? createUnpauseTransaction({ agent })
+          : null;
+
+  if (transaction === null) {
+    console.log(JSON.stringify({ ...baseOutput, operation: null, transaction: null }, null, 2));
+    return;
+  }
+  if (operation === null) throw new Error("Missing agent account operation");
+
+  if (getAddress(state.owner) !== getAddress(manifest.owner)) {
+    throw new Error(`Agent owner ${state.owner} does not match manifest owner ${manifest.owner}`);
+  }
+
+  await publicClient.call({
+    account: state.owner,
+    to: transaction.to,
+    value: transaction.value,
+    data: transaction.data,
+  });
+
+  const outputWithTransaction = {
+    ...baseOutput,
+    operation: operation.name,
+    delegate: operation.name === "delegate" ? operation.delegate : undefined,
+    transaction: {
+      to: transaction.to,
+      value: transaction.value.toString(),
+      data: transaction.data,
+    },
+    simulation: "passed",
+  };
+
+  if (!shouldSend) {
+    console.log(JSON.stringify(outputWithTransaction, null, 2));
+    return;
+  }
+
+  const rawPrivateKey = process.env.PRIVATE_KEY;
+  if (rawPrivateKey === undefined || rawPrivateKey.length === 0) {
+    throw new Error("PRIVATE_KEY is required when --send is used");
+  }
+
+  const account = privateKeyToAccount(normalizePrivateKey(rawPrivateKey));
+  if (getAddress(account.address) !== getAddress(state.owner)) {
+    throw new Error(`PRIVATE_KEY address ${account.address} does not match agent owner ${state.owner}`);
+  }
+
+  const walletClient = createWalletClient({ account, chain: baseSepolia, transport: http(rpcUrl) });
+  const hash = await walletClient.sendTransaction({
+    account,
+    chain: baseSepolia,
+    to: transaction.to,
+    value: transaction.value,
+    data: transaction.data,
+  });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+  console.log(
+    JSON.stringify(
+      {
+        ...outputWithTransaction,
+        hash,
+        explorerUrl: `${manifest.explorerUrl}/tx/${hash}`,
+        receipt: {
+          blockNumber: receipt.blockNumber.toString(),
+          status: receipt.status,
+        },
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+async function readAgentState(
+  client: AgentAccountReadClient,
+  manifest: Awaited<ReturnType<typeof readDeploymentManifest>>,
+  delegate: `0x${string}` | undefined,
+): Promise<{
+  owner: `0x${string}`;
+  paused: boolean;
+  capabilities: `0x${string}`;
+  policyEngine: `0x${string}`;
+  reputationRegistry: `0x${string}`;
+  reputation: string;
+  delegateAllowed?: boolean;
+}> {
+  const agent = manifest.contracts.agentAccount;
+  const [owner, paused, capabilities, policyEngine, reputationRegistry, reputation] = await Promise.all([
+    client.readContract({ address: agent, abi: AGENT_ACCOUNT_ABI, functionName: "owner" }) as Promise<`0x${string}`>,
+    client.readContract({ address: agent, abi: AGENT_ACCOUNT_ABI, functionName: "paused" }) as Promise<boolean>,
+    client.readContract({ address: agent, abi: AGENT_ACCOUNT_ABI, functionName: "capabilities" }) as Promise<`0x${string}`>,
+    client.readContract({ address: agent, abi: AGENT_ACCOUNT_ABI, functionName: "policyEngine" }) as Promise<`0x${string}`>,
+    client.readContract({ address: agent, abi: AGENT_ACCOUNT_ABI, functionName: "reputationRegistry" }) as Promise<`0x${string}`>,
+    client.readContract({ address: agent, abi: AGENT_ACCOUNT_ABI, functionName: "reputation" }) as Promise<bigint>,
+  ]);
+
+  const state = {
+    owner,
+    paused,
+    capabilities,
+    policyEngine,
+    reputationRegistry,
+    reputation: reputation.toString(),
+  };
+
+  if (delegate === undefined) return state;
+
+  const delegateAllowed = (await client.readContract({
+    address: agent,
+    abi: AGENT_ACCOUNT_ABI,
+    functionName: "delegates",
+    args: [delegate],
+  })) as boolean;
+
+  return { ...state, delegateAllowed };
+}
+
+function readAddressFlag(name: string): `0x${string}` | undefined {
+  const value = readFlag(name);
+  if (value === undefined) return undefined;
+  if (!isAddress(value)) throw new Error(`${name} must be an address`);
+  return value;
+}
+
+function readOptionalEnvAddress(name: string): `0x${string}` | undefined {
+  const value = process.env[name];
+  if (value === undefined || value.length === 0) return undefined;
+  if (!isAddress(value)) throw new Error(`${name} must be an address`);
+  return value;
+}
+
+function readFlag(name: string): string | undefined {
+  const index = process.argv.indexOf(name);
+  if (index === -1) return undefined;
+  const value = process.argv[index + 1];
+  if (value === undefined || value.startsWith("--")) throw new Error(`${name} requires a value`);
+  return value;
+}
+
+function loadDotEnv(path: string): void {
+  let contents: string;
+  try {
+    contents = readFileSync(path, "utf8");
+  } catch {
+    return;
+  }
+
+  for (const rawLine of contents.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (line.length === 0 || line.startsWith("#")) continue;
+    const separator = line.indexOf("=");
+    if (separator === -1) continue;
+    const key = line.slice(0, separator).trim();
+    const value = stripQuotes(line.slice(separator + 1).trim());
+    if (key.length > 0 && process.env[key] === undefined) process.env[key] = value;
+  }
+}
+
+function stripQuotes(value: string): string {
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
+function validateAgentAccountReport(output: unknown): void {
+  const report = requireObject(output, "Agent account report must be an object");
+  requireString(report.mode, "Agent account report mode must be a string");
+  requireNumber(report.chainId, "Agent account report chainId must be a number");
+  requireString(report.agent, "Agent account report agent must be a string");
+  requireString(report.owner, "Agent account report owner must be a string");
+  requireBoolean(report.paused, "Agent account report paused must be a boolean");
+  requireString(report.capabilities, "Agent account report capabilities must be a string");
+  requireString(report.policyEngine, "Agent account report policyEngine must be a string");
+  requireString(report.reputationRegistry, "Agent account report reputationRegistry must be a string");
+  requireString(report.reputation, "Agent account report reputation must be a string");
+  validateTransactionEvidence(report.transaction, "Agent account");
+  if (report.operation !== null && report.operation !== undefined) {
+    requireString(report.operation, "Agent account operation must be a string");
+  }
+  if (report.simulation !== undefined) requireString(report.simulation, "Agent account simulation must be a string");
+  if (report.hash !== undefined) {
+    requireString(report.hash, "Agent account hash must be a string");
+    validateReceiptEvidence(report.receipt, "Agent account");
+  }
+}

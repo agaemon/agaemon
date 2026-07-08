@@ -1,0 +1,58 @@
+name: Plugin Or Integration Proposal
+description: Propose a capability adapter, policy template, evidence exporter, dashboard widget, or identity/reputation integration.
+title: "plugin: "
+labels: ["plugin", "proposal"]
+body:
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Trust boundary
+      options:
+        - label: This proposal preserves "AI proposes. Policy decides. Accounts execute."
+          required: true
+        - label: This proposal keeps trust-critical policy, verifier, and evidence behavior inspectable.
+          required: true
+        - label: This proposal does not require mainnet, live funds, private-key custody, or token promises.
+          required: true
+  - type: dropdown
+    id: plugin_type
+    attributes:
+      label: Proposal type
+      options:
+        - Policy template
+        - Capability adapter
+        - Evidence exporter
+        - Dashboard widget
+        - Identity or reputation integration
+        - SDK example
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: Which agent or operator workflow does this make safer or easier to verify?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Expected evidence
+      description: What tests, fixtures, verifier output, or demo artifact should prove it works?
+    validations:
+      required: true
+  - type: textarea
+    id: failure_modes
+    attributes:
+      label: Failure modes
+      description: How should this fail safely when inputs, policy, capability, or evidence are wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation notes
+      description: Relevant contracts, runtime modules, commands, or external protocols.
+    validations:
+      required: false
