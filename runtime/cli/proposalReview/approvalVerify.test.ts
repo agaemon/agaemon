@@ -142,6 +142,8 @@ describe("runProposalReviewApprovalVerifyCli", () => {
       passed: true,
       failures: [],
       manifestVerification,
+      verificationScope: "local-record-consistency",
+      reviewerAuthentication: "not-verified",
     }, null, 2)]);
     expect(calls).toEqual([
       "read:artifacts/approval.json",
@@ -187,6 +189,8 @@ describe("runProposalReviewApprovalVerifyCli", () => {
       passed: false,
       failures: ["approval manifest sha256 does not match current manifest"],
       manifestVerification,
+      verificationScope: "local-record-consistency",
+      reviewerAuthentication: "not-verified",
     }, null, 2)]);
     expect(exitCodes).toEqual([1]);
   });

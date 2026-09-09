@@ -223,6 +223,8 @@ describe("runProposalReviewApprovalCli", () => {
       reviewer: "0x1111111111111111111111111111111111111111",
       decision: "approved",
       passed: true,
+      recordType: "local-review-acknowledgement",
+      reviewerAuthentication: "not-verified",
     }, null, 2)]);
     expect(calls).toEqual([
       "mkdir:artifacts",
