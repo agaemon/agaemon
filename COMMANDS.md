@@ -247,6 +247,20 @@ npm run base:agent-proposal-review-package
 npm run base:agent-proposal-review-preflight
 ```
 
+Approval records are local review acknowledgements. The approval verification
+command reports `verificationScope: "local-record-consistency"` and
+`reviewerAuthentication: "not-verified"` on both passing and failing checks.
+`passed: true` means the record passed the existing structure, evidence-hash,
+and preflight-consistency checks. It does not prove that the supplied reviewer
+controls the address, authorized the decision, or signed the record.
+
+When the approval command uses `--output`, its console write summary includes
+`recordType: "local-review-acknowledgement"` and
+`reviewerAuthentication: "not-verified"`. The saved approval artifact is unchanged;
+without `--output`, stdout remains the same raw approval artifact for piping.
+Existing exit codes, review checks, and execution controls remain unchanged.
+These labels describe evidence scope and do not add authentication or authority.
+
 ## release
 
 Entry points: `runtime/cli/release/`.

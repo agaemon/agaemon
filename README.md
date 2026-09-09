@@ -202,6 +202,20 @@ account deployment and a separately planned migration of policy, delegates,
 balances, reputation, and address references. Do not unpause an affected legacy
 account on the assumption that updating the runtime revoked its delegate.
 
+## Local Review Records
+
+Proposal approval files record a local review acknowledgement. The supplied
+`reviewer` address identifies the claimed reviewer; the approval verifier checks
+its format, not control of that address or permission to approve. A passing
+verification checks record structure and consistency with the supplied evidence,
+including hashes and proposal preflight results. It does not authenticate the
+reviewer's decision or verify a reviewer signature.
+
+These records support the existing operator review workflow. An `approved`
+record or a passing verification does not grant on-chain authority; account
+caller authorization, capability checks, and policy enforcement still apply.
+See [COMMANDS.md](COMMANDS.md#proposalreview) for report labels and output behavior.
+
 ## Core Verification Commands
 
 Verify the checked-in Base Sepolia manifest against chain state:

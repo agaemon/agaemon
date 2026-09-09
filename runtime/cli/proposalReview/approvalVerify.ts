@@ -70,6 +70,8 @@ export async function runProposalReviewApprovalVerifyCli(
         proposal: args.proposalPath,
         summary: args.summaryPath,
         ...verification,
+        verificationScope: "local-record-consistency",
+        reviewerAuthentication: "not-verified",
       },
       null,
       2,

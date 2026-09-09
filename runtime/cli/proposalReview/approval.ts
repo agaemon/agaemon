@@ -92,6 +92,8 @@ export async function runProposalReviewApprovalCli(options: ProposalReviewApprov
             reviewer: result.approval.reviewer,
             decision: result.approval.decision,
             passed: true,
+            recordType: "local-review-acknowledgement",
+            reviewerAuthentication: "not-verified",
           },
           null,
           2,
