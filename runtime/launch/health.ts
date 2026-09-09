@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { AGENT_ACCOUNT_REVOCATION_CHECKS } from "../agentCore/account.js";
 import { parseDeploymentManifest } from "../base/deploymentManifest.js";
 import { verifyBaseSepoliaReleaseStatusSnapshot } from "../release/status.js";
 
@@ -392,6 +393,11 @@ function validateAgentAccountSafetyReport(report: unknown): asserts report is Ag
   requireString(record.reputationRegistry, "agent account safety reputationRegistry");
   requireString(record.reputation, "agent account safety reputation");
   const checks = requireRecord(record.checks, "agent account safety checks");
+  for (const name of AGENT_ACCOUNT_REVOCATION_CHECKS) {
+    if (typeof checks[name] !== "boolean") {
+      throw new Error(`Missing or invalid ${name}; regenerate account safety evidence`);
+    }
+  }
   for (const [name, value] of Object.entries(checks)) {
     if (typeof value !== "boolean") throw new Error(`agent account safety check ${name} must be a boolean`);
   }

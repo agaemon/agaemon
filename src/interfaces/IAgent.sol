@@ -19,6 +19,7 @@ interface IAgent {
 
     function execute(AgentAction calldata action) external payable returns (bytes memory result);
     function delegate(address subagent) external;
+    function revokeDelegate(address subagent) external;
     function pause() external;
     function unpause() external;
     function reputation() external view returns (uint256);

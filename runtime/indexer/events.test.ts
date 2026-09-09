@@ -17,6 +17,20 @@ const TREASURY_PAYMENT_ADAPTER = "0x0000000000000000000000000000000000000e03";
 const UNKNOWN_CONTRACT = "0x0000000000000000000000000000000000000999";
 
 describe("createAgentOsEventIndex", () => {
+  it("preserves a revoked delegate event as allowed false", () => {
+    const index = createAgentOsEventIndex({
+      manifest: createManifest(), manifestPath: "deployments/base-sepolia/latest.json", fromBlock: 200n,
+      logs: [createEventLog({
+        address: AGENT_ACCOUNT, event: "event DelegateSet(address indexed subagent, bool allowed)",
+        args: { subagent: "0x0000000000000000000000000000000000000d31", allowed: false },
+        blockNumber: 200n, logIndex: 4, transactionHash: hash("d"),
+      })],
+    });
+    expect(index.events[0]).toMatchObject({ eventName: "DelegateSet", args: {
+      subagent: getAddress("0x0000000000000000000000000000000000000d31"), allowed: false,
+    } });
+  });
+
   it("normalizes known AgentOS events from manifest addresses", () => {
     const directoryEvent = createEventLog({
       address: DIRECTORY,

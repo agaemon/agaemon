@@ -3,7 +3,22 @@ import type { Address } from "viem";
 
 import type { ExecuteTransaction } from "../transactions/builder.js";
 
+export const AGENT_ACCOUNT_REVOCATION_CHECKS = [
+  "revokeDelegateCallable",
+  "unauthorizedRevokeDelegateDenied",
+  "zeroRevokeDelegateDenied",
+] as const;
+
 export const AGENT_ACCOUNT_ABI = [
+  { type: "error", name: "NotOwner", inputs: [] },
+  { type: "error", name: "InvalidAddress", inputs: [] },
+  {
+    type: "function",
+    name: "revokeDelegate",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "subagent", type: "address" }],
+    outputs: [],
+  },
   {
     type: "function",
     name: "owner",
@@ -87,7 +102,7 @@ export interface CreateAgentAccountTransactionParams {
 
 export type AgentAccountOperation =
   | {
-      name: "delegate";
+      name: "delegate" | "revokeDelegate";
       delegate: Address;
     }
   | {
@@ -100,6 +115,7 @@ export type AgentAccountOperation =
 export interface ResolveAgentAccountOperationParams {
   delegate?: Address | undefined;
   envDelegate?: Address | undefined;
+  revokeDelegate?: Address | undefined;
   pause: boolean;
   send: boolean;
   unpause: boolean;
@@ -117,14 +133,27 @@ export function createDelegateTransaction(params: CreateDelegateTransactionParam
   };
 }
 
+export function createRevokeDelegateTransaction(params: CreateDelegateTransactionParams): ExecuteTransaction {
+  return {
+    to: params.agent,
+    value: 0n,
+    data: encodeFunctionData({
+      abi: AGENT_ACCOUNT_ABI,
+      functionName: "revokeDelegate",
+      args: [params.delegate],
+    }),
+  };
+}
+
 export function resolveAgentAccountOperation(
   params: ResolveAgentAccountOperationParams,
 ): AgentAccountOperation | null {
-  const operationCount = Number(params.delegate !== undefined) + Number(params.pause) + Number(params.unpause);
-  if (operationCount > 1) throw new Error("Choose only one operation: --delegate, --pause, or --unpause");
-  if (params.send && operationCount === 0) throw new Error("--send requires --delegate, --pause, or --unpause");
+  const operationCount = Number(params.delegate !== undefined) + Number(params.revokeDelegate !== undefined) + Number(params.pause) + Number(params.unpause);
+  if (operationCount > 1) throw new Error("Choose only one operation: --delegate, --revoke-delegate, --pause, or --unpause");
+  if (params.send && operationCount === 0) throw new Error("--send requires --delegate, --revoke-delegate, --pause, or --unpause");
 
   if (params.delegate !== undefined) return { name: "delegate", delegate: params.delegate };
+  if (params.revokeDelegate !== undefined) return { name: "revokeDelegate", delegate: params.revokeDelegate };
   if (params.pause) return { name: "pause" };
   if (params.unpause) return { name: "unpause" };
 
