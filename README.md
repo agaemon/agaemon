@@ -156,6 +156,51 @@ npm run base:env-check -- --scope broadcast
 
 Secret values are never printed.
 
+## Delegate Revocation
+
+The owner can grant with `delegate(address)` and revoke with
+`revokeDelegate(address)`. Revocation works while paused, affects only the
+specified delegate, and emits `DelegateSet(delegate, false)`. Repeating a
+revocation is safe; granting again explicitly restores that delegate. Clearing
+the owner's delegate entry does not remove the owner's own authority.
+
+For an account deployed with revocation support, first simulate (replace
+`DELEGATE_ADDRESS` with the address to revoke):
+
+```bash
+npm run base:agent-account -- --revoke-delegate DELEGATE_ADDRESS --manifest deployments/base-sepolia/latest.json
+```
+
+The default is a dry run, requiring only RPC access. Review the delegate,
+account, and transaction before adding `--send` to submit with the account
+owner's configured test-wallet key. A successful simulation is not revocation.
+Send-mode success requires a successful receipt and a false delegate mapping at
+`verifiedAtBlock`; output separates `delegateAllowedBefore` from
+`delegateAllowedAfter`. Check the current mapping again before unpausing if
+other owner transactions may have regranted authority in the meantime.
+
+For emergency containment: pause, revoke the affected delegate, verify the
+receipt and delegate state, then explicitly unpause. Revocation cannot undo
+transactions completed or ordered before it. Use `--delegate ADDRESS` only
+when intentionally granting authority again. `AGENT_DELEGATE` selects a state
+read and never implicitly grants or revokes.
+
+```bash
+npm run base:agent-account-safety-check -- --manifest deployments/base-sepolia/latest.json
+```
+
+The safety check verifies owner-callable revocation and exact rejection of
+non-owner and zero-address requests. These independent simulations do not
+prove a stateful grant/revoke lifecycle; contract tests provide that proof.
+Saved safety reports missing the revocation checks must be regenerated before
+the health gate accepts them.
+
+**Existing deployments are not upgraded by this change.** Previously deployed
+accounts lack the revoke method and fail its preflight. They require a new
+account deployment and a separately planned migration of policy, delegates,
+balances, reputation, and address references. Do not unpause an affected legacy
+account on the assumption that updating the runtime revoked its delegate.
+
 ## Core Verification Commands
 
 Verify the checked-in Base Sepolia manifest against chain state:

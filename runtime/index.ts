@@ -442,6 +442,7 @@ export type {
 export {
   AGENT_ACCOUNT_ABI,
   createDelegateTransaction,
+  createRevokeDelegateTransaction,
   createPauseTransaction,
   createUnpauseTransaction,
 } from "./agentCore/account.js";

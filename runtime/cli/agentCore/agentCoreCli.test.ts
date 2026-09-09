@@ -113,7 +113,7 @@ describe("agent-core CLI seams", () => {
     expect(module.parseAgentAccountCliArgs(["--send", "--manifest", "custom.json", "--delegate", AGENT]))
       .toEqual({ send: true, manifestPath: "custom.json", delegate: AGENT, pause: false, unpause: false });
     expect(() => module.parseAgentAccountCliArgs(["--pause", "--unpause"]))
-      .toThrow("Choose only one operation: --delegate, --pause, or --unpause");
+      .toThrow("Choose only one operation: --delegate, --revoke-delegate, --pause, or --unpause");
 
     await module.runAgentAccountCli({
       argv: ["--pause"],
@@ -157,7 +157,7 @@ describe("agent-core CLI seams", () => {
           policyEngine: POLICY_ENGINE,
           reputationRegistry: REPUTATION_REGISTRY,
           reputation: "1",
-          checks: { pauseCallable: true },
+          checks: { pauseCallable: true, revokeDelegateCallable: true, unauthorizedRevokeDelegateDenied: true, zeroRevokeDelegateDenied: true },
         },
       }),
     });
@@ -352,7 +352,7 @@ describe("agent-core command-specific injected report guards", () => {
           policyEngine: POLICY_ENGINE,
           reputationRegistry: REPUTATION_REGISTRY,
           reputation: 1,
-          checks: { pauseCallable: true },
+          checks: { pauseCallable: true, revokeDelegateCallable: true, unauthorizedRevokeDelegateDenied: true, zeroRevokeDelegateDenied: true },
         },
       }),
     })).rejects.toThrow("Agent account safety reputation must be a string");

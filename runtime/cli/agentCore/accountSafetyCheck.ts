@@ -1,11 +1,12 @@
 import { readFileSync } from "node:fs";
 
-import { createPublicClient, getAddress, http } from "viem";
+import { BaseError, ContractFunctionRevertedError, createPublicClient, getAddress, http } from "viem";
 import type { Address, Hex } from "viem";
 import { baseSepolia } from "viem/chains";
 
 import {
   AGENT_ACCOUNT_ABI,
+  AGENT_ACCOUNT_REVOCATION_CHECKS,
   createDelegateTransaction,
   createPauseTransaction,
   createUnpauseTransaction,
@@ -42,7 +43,8 @@ if (isAgentAccountSafetyCheckDirectRun(import.meta.url, process.argv)) {
 }
 
 export async function runAgentAccountSafetyCheckCli(options: AgentAccountSafetyCheckCliOptions = {}): Promise<void> {
-  await runInjectedOrDefault(options, parseAgentAccountSafetyCheckCliArgs, main, validateAgentAccountSafetyReport);
+  await runInjectedOrDefault(options, parseAgentAccountSafetyCheckCliArgs,
+    () => main(parseAgentAccountSafetyCheckCliArgs(options.argv ?? process.argv.slice(2))), validateAgentAccountSafetyReport);
 }
 
 export function parseAgentAccountSafetyCheckCliArgs(argv: readonly string[]): AgentAccountSafetyCheckCliArgs {
@@ -54,10 +56,10 @@ export function isAgentAccountSafetyCheckDirectRun(moduleUrl: string, argv: read
   return isDirectRun(moduleUrl, argv);
 }
 
-async function main(): Promise<void> {
+async function main(args: AgentAccountSafetyCheckCliArgs): Promise<void> {
   loadDotEnv(".env");
 
-  const manifestPath = readFlag("--manifest") ?? DEFAULT_MANIFEST_PATH;
+  const manifestPath = args.manifestPath;
   const manifest = await readDeploymentManifest(manifestPath);
   const rpcUrl = process.env[manifest.rpcUrlEnv];
   if (rpcUrl === undefined || rpcUrl.length === 0) throw new Error(`${manifest.rpcUrlEnv} is required`);
@@ -98,6 +100,9 @@ async function main(): Promise<void> {
     functionName: "reputation",
   })) as bigint;
 
+  const unauthorizedCaller = getAddress(owner) === getAddress(UNAUTHORIZED_CALLER)
+    ? "0x0000000000000000000000000000000000000001"
+    : UNAUTHORIZED_CALLER;
   const delegateCandidate = owner;
   const delegateCallable = await callPasses(
     publicClient,
@@ -106,14 +111,33 @@ async function main(): Promise<void> {
   );
   const pauseCallable = await callPasses(publicClient, owner, createPauseTransaction({ agent }));
   const unpauseCallable = await callPasses(publicClient, owner, createUnpauseTransaction({ agent }));
-  const unauthorizedPauseDenied = !(await callPasses(publicClient, UNAUTHORIZED_CALLER, createPauseTransaction({ agent })));
+  const unauthorizedPauseDenied = !(await callPasses(publicClient, unauthorizedCaller, createPauseTransaction({ agent })));
   const zeroDelegateDenied = !(await callPasses(
     publicClient,
     owner,
     createDelegateTransaction({ agent, delegate: ZERO_ADDRESS }),
   ));
 
+  // Each simulation starts from current chain state; these are not lifecycle proofs.
+  async function checkRevoke(account: Address, subagent: Address, expectedError?: "NotOwner" | "InvalidAddress") {
+    try {
+      await publicClient.simulateContract({
+        address: agent, abi: AGENT_ACCOUNT_ABI, functionName: "revokeDelegate", args: [subagent], account,
+      });
+      return expectedError === undefined;
+    } catch (error) {
+      const revert = error instanceof BaseError
+        ? error.walk((cause) => cause instanceof ContractFunctionRevertedError)
+        : undefined;
+      return expectedError !== undefined && revert instanceof ContractFunctionRevertedError
+        && revert.data?.errorName === expectedError;
+    }
+  }
+
   const checks = {
+    revokeDelegateCallable: await checkRevoke(owner, delegateCandidate),
+    unauthorizedRevokeDelegateDenied: await checkRevoke(unauthorizedCaller, delegateCandidate, "NotOwner"),
+    zeroRevokeDelegateDenied: await checkRevoke(owner, ZERO_ADDRESS, "InvalidAddress"),
     ownerMatchesManifestOwner: getAddress(owner) === getAddress(manifest.owner),
     capabilitiesMatchManifest: getAddress(capabilities) === getAddress(manifest.contracts.capabilityRegistry),
     policyEngineMatchesManifest: getAddress(policyEngine) === getAddress(manifest.contracts.policyEngine),
@@ -160,14 +184,6 @@ async function callPasses(client: CallClient, account: Address, transaction: { t
   }
 }
 
-function readFlag(name: string): string | undefined {
-  const index = process.argv.indexOf(name);
-  if (index === -1) return undefined;
-  const value = process.argv[index + 1];
-  if (value === undefined || value.startsWith("--")) throw new Error(`${name} requires a value`);
-  return value;
-}
-
 function loadDotEnv(path: string): void {
   let contents: string;
   try {
@@ -205,4 +221,8 @@ function validateAgentAccountSafetyReport(output: unknown): void {
   requireString(report.reputationRegistry, "Agent account safety reputationRegistry must be a string");
   requireString(report.reputation, "Agent account safety reputation must be a string");
   validateChecksEvidence(report.checks, "Agent account safety");
+  const checks = requireObject(report.checks, "Agent account safety checks must be an object");
+  for (const name of AGENT_ACCOUNT_REVOCATION_CHECKS) {
+    requireBoolean(checks[name], `Missing or invalid ${name}; regenerate account safety evidence`);
+  }
 }

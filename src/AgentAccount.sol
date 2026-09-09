@@ -65,6 +65,13 @@ contract AgentAccount is IAgent {
         emit DelegateSet(subagent, true);
     }
 
+    function revokeDelegate(address subagent) external onlyOwner {
+        if (subagent == address(0)) revert InvalidAddress();
+
+        delegates[subagent] = false;
+        emit DelegateSet(subagent, false);
+    }
+
     function pause() external onlyOwner {
         paused = true;
         emit Paused(msg.sender);

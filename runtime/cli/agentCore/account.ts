@@ -1,12 +1,13 @@
 import { readFileSync } from "node:fs";
 
-import { createPublicClient, createWalletClient, getAddress, http, isAddress } from "viem";
+import { BaseError, ContractFunctionRevertedError, createPublicClient, createWalletClient, getAddress, http, isAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
 
 import {
   AGENT_ACCOUNT_ABI,
   createDelegateTransaction,
+  createRevokeDelegateTransaction,
   createPauseTransaction,
   createUnpauseTransaction,
   resolveAgentAccountOperation,
@@ -48,6 +49,7 @@ export interface AgentAccountCliArgs {
   send: boolean;
   manifestPath: string;
   delegate?: string | undefined;
+  revokeDelegate?: string | undefined;
   pause: boolean;
   unpause: boolean;
 }
@@ -59,20 +61,25 @@ if (isAgentAccountDirectRun(import.meta.url, process.argv)) {
 }
 
 export async function runAgentAccountCli(options: AgentAccountCliOptions = {}): Promise<void> {
-  await runInjectedOrDefault(options, parseAgentAccountCliArgs, main, validateAgentAccountReport);
+  await runInjectedOrDefault(options, parseAgentAccountCliArgs,
+    () => main(parseAgentAccountCliArgs(options.argv ?? process.argv.slice(2))), validateAgentAccountReport);
 }
 
 export function parseAgentAccountCliArgs(argv: readonly string[]): AgentAccountCliArgs {
-  const values = parseValues(argv, ["--manifest", "--delegate"], ["--send", "--pause", "--unpause"]);
-  const delegate = values.options.get("--delegate");
+  const values = parseValues(argv, ["--manifest", "--delegate", "--revoke-delegate"], ["--send", "--pause", "--unpause"]);
+  const delegate = readAddress(values.options.get("--delegate"), "--delegate");
+  const revokeDelegate = readAddress(values.options.get("--revoke-delegate"), "--revoke-delegate");
+  if (revokeDelegate === "0x0000000000000000000000000000000000000000") {
+    throw new Error("--revoke-delegate must be a nonzero address");
+  }
   const pause = values.booleans.has("--pause");
   const unpause = values.booleans.has("--unpause");
-  const operationCount = Number(delegate !== undefined) + Number(pause) + Number(unpause);
-  if (operationCount > 1) throw new Error("Choose only one operation: --delegate, --pause, or --unpause");
+  resolveAgentAccountOperation({ delegate, revokeDelegate, pause, unpause, send: values.booleans.has("--send") });
   return {
     send: values.booleans.has("--send"),
     manifestPath: values.options.get("--manifest") ?? DEFAULT_MANIFEST_PATH,
     delegate,
+    ...(revokeDelegate === undefined ? {} : { revokeDelegate }),
     pause,
     unpause,
   };
@@ -82,22 +89,24 @@ export function isAgentAccountDirectRun(moduleUrl: string, argv: readonly string
   return isDirectRun(moduleUrl, argv);
 }
 
-async function main(): Promise<void> {
+async function main(args: AgentAccountCliArgs): Promise<void> {
   loadDotEnv(".env");
 
-  const shouldSend = process.argv.includes("--send");
-  const manifestPath = readFlag("--manifest") ?? DEFAULT_MANIFEST_PATH;
+  const shouldSend = args.send;
+  const manifestPath = args.manifestPath;
   const manifest = await readDeploymentManifest(manifestPath);
   const rpcUrl = process.env[manifest.rpcUrlEnv];
   if (rpcUrl === undefined || rpcUrl.length === 0) throw new Error(`${manifest.rpcUrlEnv} is required`);
 
   const agent = manifest.contracts.agentAccount;
-  const delegate = readAddressFlag("--delegate");
+  const delegate = readAddress(args.delegate, "--delegate");
+  const revokeDelegate = readAddress(args.revokeDelegate, "--revoke-delegate");
   const envDelegate = readOptionalEnvAddress("AGENT_DELEGATE");
-  const shouldPause = process.argv.includes("--pause");
-  const shouldUnpause = process.argv.includes("--unpause");
+  const shouldPause = args.pause;
+  const shouldUnpause = args.unpause;
   const operation = resolveAgentAccountOperation({
     delegate,
+    revokeDelegate,
     envDelegate,
     pause: shouldPause,
     send: shouldSend,
@@ -108,22 +117,27 @@ async function main(): Promise<void> {
   const chainId = await publicClient.getChainId();
   if (chainId !== manifest.chainId) throw new Error(`Connected to chain ${chainId}, expected ${manifest.chainId}`);
 
-  const state = await readAgentState(publicClient, manifest, delegate ?? envDelegate);
+  const state = await readAgentState(publicClient, manifest, revokeDelegate ?? delegate ?? envDelegate);
   const baseOutput = {
     mode: shouldSend ? "send" : "dry-run",
     chainId,
     agent,
     ...state,
+    ...(operation?.name === "revokeDelegate"
+      ? { delegateAllowed: undefined, delegateAllowedBefore: state.delegateAllowed }
+      : {}),
   };
 
   const transaction =
     operation?.name === "delegate"
       ? createDelegateTransaction({ agent, delegate: operation.delegate })
-      : operation?.name === "pause"
-        ? createPauseTransaction({ agent })
-        : operation?.name === "unpause"
-          ? createUnpauseTransaction({ agent })
-          : null;
+      : operation?.name === "revokeDelegate"
+        ? createRevokeDelegateTransaction({ agent, delegate: operation.delegate })
+        : operation?.name === "pause"
+          ? createPauseTransaction({ agent })
+          : operation?.name === "unpause"
+            ? createUnpauseTransaction({ agent })
+            : null;
 
   if (transaction === null) {
     console.log(JSON.stringify({ ...baseOutput, operation: null, transaction: null }, null, 2));
@@ -135,17 +149,34 @@ async function main(): Promise<void> {
     throw new Error(`Agent owner ${state.owner} does not match manifest owner ${manifest.owner}`);
   }
 
-  await publicClient.call({
-    account: state.owner,
-    to: transaction.to,
-    value: transaction.value,
-    data: transaction.data,
-  });
+  if (operation.name === "revokeDelegate") {
+    try {
+      await publicClient.simulateContract({
+        address: agent, abi: AGENT_ACCOUNT_ABI, functionName: "revokeDelegate",
+        args: [operation.delegate], account: state.owner,
+      });
+    } catch (error) {
+      const revert = error instanceof BaseError
+        ? error.walk((cause) => cause instanceof ContractFunctionRevertedError)
+        : undefined;
+      if (revert instanceof ContractFunctionRevertedError) {
+        throw new Error("Revocation preflight reverted; verify that this account supports revokeDelegate. No transaction sent.", { cause: error });
+      }
+      throw error;
+    }
+  } else {
+    await publicClient.call({
+      account: state.owner,
+      to: transaction.to,
+      value: transaction.value,
+      data: transaction.data,
+    });
+  }
 
   const outputWithTransaction = {
     ...baseOutput,
     operation: operation.name,
-    delegate: operation.name === "delegate" ? operation.delegate : undefined,
+    delegate: operation.name === "delegate" || operation.name === "revokeDelegate" ? operation.delegate : undefined,
     transaction: {
       to: transaction.to,
       value: transaction.value.toString(),
@@ -177,13 +208,35 @@ async function main(): Promise<void> {
     value: transaction.value,
     data: transaction.data,
   });
-  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash }).catch((error: unknown) => {
+    if (operation.name === "revokeDelegate") {
+      throw new Error(`Revocation transaction ${hash} receipt could not be obtained; confirmation is unknown`, { cause: error });
+    }
+    throw error;
+  });
+  if (operation.name === "revokeDelegate") {
+    if (receipt.status !== "success") throw new Error(`Revocation transaction ${hash} reverted`);
+    try {
+      const allowed = await publicClient.readContract({
+        address: agent, abi: AGENT_ACCOUNT_ABI, functionName: "delegates",
+        args: [operation.delegate], blockNumber: receipt.blockNumber,
+      });
+      if (allowed !== false) throw new Error("Delegate remains authorized");
+    } catch (error) {
+      throw new Error(`Revocation transaction ${hash} could not be verified; inspect receipt and delegate state`, { cause: error });
+    }
+  }
 
   console.log(
     JSON.stringify(
       {
         ...outputWithTransaction,
         hash,
+        ...(operation.name === "revokeDelegate" ? {
+          delegateAllowedAfter: false,
+          revocationConfirmed: true,
+          verifiedAtBlock: receipt.blockNumber.toString(),
+        } : {}),
         explorerUrl: `${manifest.explorerUrl}/tx/${hash}`,
         receipt: {
           blockNumber: receipt.blockNumber.toString(),
@@ -240,8 +293,7 @@ async function readAgentState(
   return { ...state, delegateAllowed };
 }
 
-function readAddressFlag(name: string): `0x${string}` | undefined {
-  const value = readFlag(name);
+function readAddress(value: string | undefined, name: string): `0x${string}` | undefined {
   if (value === undefined) return undefined;
   if (!isAddress(value)) throw new Error(`${name} must be an address`);
   return value;
@@ -251,14 +303,6 @@ function readOptionalEnvAddress(name: string): `0x${string}` | undefined {
   const value = process.env[name];
   if (value === undefined || value.length === 0) return undefined;
   if (!isAddress(value)) throw new Error(`${name} must be an address`);
-  return value;
-}
-
-function readFlag(name: string): string | undefined {
-  const index = process.argv.indexOf(name);
-  if (index === -1) return undefined;
-  const value = process.argv[index + 1];
-  if (value === undefined || value.startsWith("--")) throw new Error(`${name} requires a value`);
   return value;
 }
 

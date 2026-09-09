@@ -48,6 +48,20 @@ contract AgentAccountFuzzTest {
         require(!target.wasCalled(), "target should not be called");
     }
 
+    function testFuzzRevokedCallerCannotExecuteUntilRegranted(address caller) public {
+        vm.assume(caller != address(this) && caller != address(0));
+        agent.delegate(caller);
+        agent.revokeDelegate(caller);
+        vm.prank(caller);
+        (bool ok, bytes memory result) = address(agent).call(abi.encodeCall(IAgent.execute, (allowedAction())));
+        require(!ok && bytes4(result) == AgentAccount.UnauthorizedCaller.selector, "revoked caller must be denied");
+        require(!target.wasCalled(), "revoked caller must not reach target");
+        agent.delegate(caller);
+        vm.prank(caller);
+        agent.execute(allowedAction());
+        require(target.wasCalled(), "regrant must restore authority");
+    }
+
     function testFuzzPausedAccountBlocksAuthorizedCallers(bool useDelegate) public {
         if (useDelegate) {
             agent.delegate(address(delegateCaller));

@@ -1,3 +1,4 @@
+import { AGENT_ACCOUNT_REVOCATION_CHECKS } from "../agentCore/account.js";
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
@@ -76,6 +77,9 @@ const AGENT_ACCOUNT_SAFETY = {
     policyEngineMatchesManifest: true,
     reputationRegistryMatchesManifest: true,
     delegateCallable: true,
+    revokeDelegateCallable: true,
+    unauthorizedRevokeDelegateDenied: true,
+    zeroRevokeDelegateDenied: true,
     pauseCallable: true,
     unpauseCallable: true,
     unauthorizedPauseDenied: true,
@@ -92,6 +96,24 @@ const OPERATOR_ACCOUNT_STATE = {
 };
 
 describe("createBaseSepoliaHealthReport", () => {
+  it.each(AGENT_ACCOUNT_REVOCATION_CHECKS)("requires boolean %s and rejects failed evidence", (name) => {
+    const params = {
+      generatedAt: "2026-07-02T00:00:00.000Z",
+      manifestPath: "deployments/base-sepolia/latest.json", manifestContents: MANIFEST,
+      releaseStatusPath: "docs/releases/latest.json", releaseStatusJson: RELEASE_STATUS,
+    };
+    for (const value of [undefined, "true", null]) {
+      const checks = { ...AGENT_ACCOUNT_SAFETY.checks, [name]: value };
+      expect(() => createBaseSepoliaHealthReport({ ...params, agentAccountSafety: { ...AGENT_ACCOUNT_SAFETY, checks } }))
+        .toThrow(`Missing or invalid ${name}`);
+    }
+    const report = createBaseSepoliaHealthReport({ ...params, agentAccountSafety: {
+      ...AGENT_ACCOUNT_SAFETY, checks: { ...AGENT_ACCOUNT_SAFETY.checks, [name]: false },
+    } });
+    expect(report.checks.find((check) => check.id === "agent-account-safety")).toMatchObject({ passed: false });
+    expect(report.passed).toBe(false);
+  });
+
   it("passes with current local evidence and a passing live manifest verification", () => {
     const report = createBaseSepoliaHealthReport({
       generatedAt: "2026-07-02T00:00:00.000Z",
