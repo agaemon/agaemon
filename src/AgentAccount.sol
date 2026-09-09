@@ -54,6 +54,14 @@ contract AgentAccount is IAgent {
         (bool ok, bytes memory targetResult) = action.target.call{value: action.value}(action.data);
         if (!ok) revert TargetCallFailed(targetResult);
 
+        if (action.capability == keccak256("ERC20_TRANSFER")) {
+            if (
+                action.target.code.length == 0
+                    || (targetResult.length != 0
+                        && (targetResult.length != 32 || abi.decode(targetResult, (uint256)) != 1))
+            ) revert TargetCallFailed(targetResult);
+        }
+
         emit Executed(msg.sender, action.capability, action.target, action.value, targetResult);
         return targetResult;
     }
