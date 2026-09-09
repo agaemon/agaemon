@@ -27,7 +27,7 @@ const BUNDLE_PATH = "artifacts/fixture-agent-proposal-execution-bundle.json";
 const EXECUTION_MANIFEST_PATH = "artifacts/fixture-agent-proposal-execution-manifest.json";
 
 describe("proposal execution manifest/handoff fixture integration", () => {
-  it("creates reproducible manifest and handoff evidence from fixture package artifacts", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("creates reproducible manifest and handoff evidence from fixture package artifacts (%s)", async (fixtureId) => {
     const evidence = await createFixtureExecutionEvidence({
       objective: "Create fixture execution manifest handoff",
       proposalPath: "artifacts/fixture-manifest-handoff-proposal.json",
@@ -36,8 +36,7 @@ describe("proposal execution manifest/handoff fixture integration", () => {
       approvalPath: "artifacts/fixture-manifest-handoff-approval.json",
       sourcePath: "artifacts/fixture-manifest-handoff-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const executionPackage = createAgentProposalExecutionPackage(evidence);
@@ -73,7 +72,7 @@ describe("proposal execution manifest/handoff fixture integration", () => {
         runbook: RUNBOOK_PATH,
         bundle: BUNDLE_PATH,
         chainId: 84532,
-        transactions: 2,
+        transactions: 1,
       },
     });
     expect(
@@ -115,7 +114,7 @@ describe("proposal execution manifest/handoff fixture integration", () => {
     });
   });
 
-  it("blocks stale fixture package evidence before downstream handoff creation", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks stale fixture package evidence before downstream handoff creation (%s)", async (fixtureId) => {
     const evidence = await createFixtureExecutionEvidence({
       objective: "Block stale fixture handoff evidence",
       proposalPath: "artifacts/fixture-stale-handoff-proposal.json",
@@ -124,8 +123,7 @@ describe("proposal execution manifest/handoff fixture integration", () => {
       approvalPath: "artifacts/fixture-stale-handoff-approval.json",
       sourcePath: "artifacts/fixture-stale-handoff-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const staleBundle = JSON.parse(evidence.bundleJson);

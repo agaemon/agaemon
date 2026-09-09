@@ -47,7 +47,7 @@ const FIRST_TX_HASH = `0x${"9a".repeat(32)}` as const;
 const SECOND_TX_HASH = `0x${"bc".repeat(32)}` as const;
 
 describe("broadcast report/archive fixture integration", () => {
-  it("archives verified fixture receipt evidence for closeout preparation", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("archives verified fixture receipt evidence for closeout preparation (%s)", async (fixtureId) => {
     const evidence = await createFixtureReceiptEvidence({
       objective: "Archive fixture broadcast receipt evidence",
       proposalPath: "artifacts/fixture-broadcast-report-archive-proposal.json",
@@ -56,21 +56,19 @@ describe("broadcast report/archive fixture integration", () => {
       approvalPath: "artifacts/fixture-broadcast-report-archive-approval.json",
       sourcePath: "artifacts/fixture-broadcast-report-archive-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
 
     const report = createAgentProposalExecutionBroadcastReport(evidence);
     expect(report.passed).toBe(true);
     expect(report.failures).toEqual([]);
-    expect(report.transactions).toBe(2);
+    expect(report.transactions).toBe(1);
     expect(report.markdown).toContain("# Agent Proposal Execution Broadcast Report");
     expect(report.markdown).toContain(`| Receipt | ${BROADCAST_RECEIPT_PATH} |`);
     expect(report.markdown).toContain(`| Broadcast Package | ${BROADCAST_PACKAGE_PATH} |`);
-    expect(report.markdown).toContain("| Transactions | 2 |");
+    expect(report.markdown).toContain("| Transactions | 1 |");
     expect(report.markdown).toContain(`| 0 | ${FIRST_TX_HASH} | 901 | success |`);
-    expect(report.markdown).toContain(`| 1 | ${SECOND_TX_HASH} | 902 | success |`);
     expect(
       verifyAgentProposalExecutionBroadcastReport({
         ...evidence,
@@ -106,7 +104,7 @@ describe("broadcast report/archive fixture integration", () => {
           passed: true,
           failures: [],
           markdown: report.markdown,
-          transactions: 2,
+          transactions: 1,
         },
       },
     });
@@ -124,7 +122,7 @@ describe("broadcast report/archive fixture integration", () => {
     });
   });
 
-  it("blocks stale fixture receipt evidence before closeout preparation", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks stale fixture receipt evidence before closeout preparation (%s)", async (fixtureId) => {
     const evidence = await createFixtureReceiptEvidence({
       objective: "Block stale fixture broadcast archive evidence",
       proposalPath: "artifacts/fixture-stale-broadcast-report-archive-proposal.json",
@@ -133,8 +131,7 @@ describe("broadcast report/archive fixture integration", () => {
       approvalPath: "artifacts/fixture-stale-broadcast-report-archive-approval.json",
       sourcePath: "artifacts/fixture-stale-broadcast-report-archive-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const report = createAgentProposalExecutionBroadcastReport(evidence);

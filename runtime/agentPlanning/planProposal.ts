@@ -23,10 +23,16 @@ export interface CreateAgentPlanProposalParams extends AgentPlanProposalDocument
   simulatePolicy: SimulatePolicy;
 }
 
+export type AgentPlanValidationStatus =
+  | "single-step-policy-allowed"
+  | "policy-denied"
+  | "sequence-unverified";
+
 export interface AgentPlanProposal {
   objective: string;
   agent: Address;
   executable: boolean;
+  validationStatus: AgentPlanValidationStatus;
   steps: AgentPlanProposalStep[];
 }
 
@@ -68,11 +74,16 @@ export async function createAgentPlanProposal(
     });
   }
 
-  const executable = preliminarySteps.every((step) => step.decision.allowed);
+  const allStepsAllowed = preliminarySteps.every((step) => step.decision.allowed);
+  const validationStatus: AgentPlanValidationStatus = !allStepsAllowed
+    ? "policy-denied"
+    : preliminarySteps.length > 1 ? "sequence-unverified" : "single-step-policy-allowed";
+  const executable = validationStatus === "single-step-policy-allowed";
   return {
     objective: params.objective,
     agent: params.agent,
     executable,
+    validationStatus,
     steps: executable
       ? preliminarySteps
       : preliminarySteps.map((step) => ({

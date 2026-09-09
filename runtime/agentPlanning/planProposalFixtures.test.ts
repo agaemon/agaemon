@@ -7,7 +7,7 @@ import {
 import { createAgentPlanProposal } from "./planProposal.js";
 
 describe("createAgentPlanProposal fixture integration", () => {
-  it("creates executable transactions for an all-allowed fixture plan", async () => {
+  it("retains independent decisions without transactions for an all-allowed fixture plan", async () => {
     const allowedSwap = getPolicyDecisionFixture("allowed-swap");
     const allowedMemory = getPolicyDecisionFixture("allowed-memory");
 
@@ -29,20 +29,13 @@ describe("createAgentPlanProposal fixture integration", () => {
       simulatePolicy: createPolicyDecisionFixtureSimulator(),
     });
 
-    expect(proposal.executable).toBe(true);
+    expect(proposal.executable).toBe(false);
+    expect(proposal.validationStatus).toBe("sequence-unverified");
     expect(proposal.steps.map((step) => step.decision)).toEqual([
       allowedSwap.decision,
       allowedMemory.decision,
     ]);
-    expect(proposal.steps.map((step) => step.transaction?.to)).toEqual([
-      allowedSwap.agent,
-      allowedMemory.agent,
-    ]);
-    expect(proposal.steps.map((step) => step.transaction?.value)).toEqual([
-      allowedSwap.action.value,
-      allowedMemory.action.value,
-    ]);
-    expect(proposal.steps.every((step) => /^0x[0-9a-f]+$/.test(step.transaction?.data ?? ""))).toBe(true);
+    expect(proposal.steps.map((step) => step.transaction)).toEqual([null, null]);
   });
 
   it("suppresses every transaction payload for a partially denied fixture plan", async () => {

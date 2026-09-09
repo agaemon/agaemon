@@ -14,7 +14,7 @@ import {
 } from "../../fixtures/closeoutEvidence.js";
 
 describe("broadcast closeout finalization fixture integration", () => {
-  it("creates and verifies fixture finalization evidence from saved summary artifacts", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("creates and verifies fixture finalization evidence from saved summary artifacts (%s)", async (fixtureId) => {
     const evidence = await createFixtureBroadcastCloseoutFinalizationEvidence({
       objective: "Finalize fixture broadcast closeout evidence",
       proposalPath: "artifacts/fixture-broadcast-closeout-finalization-proposal.json",
@@ -23,8 +23,7 @@ describe("broadcast closeout finalization fixture integration", () => {
       approvalPath: "artifacts/fixture-broadcast-closeout-finalization-approval.json",
       sourcePath: "artifacts/fixture-broadcast-closeout-finalization-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
 
@@ -56,7 +55,7 @@ describe("broadcast closeout finalization fixture integration", () => {
     });
   });
 
-  it("rejects stale saved fixture summary Markdown during finalization verification", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("rejects stale saved fixture summary Markdown during finalization verification (%s)", async (fixtureId) => {
     const evidence = await createFixtureBroadcastCloseoutFinalizationEvidence({
       objective: "Reject stale fixture broadcast closeout finalization summary",
       proposalPath: "artifacts/fixture-stale-broadcast-closeout-finalization-summary-proposal.json",
@@ -65,8 +64,7 @@ describe("broadcast closeout finalization fixture integration", () => {
       approvalPath: "artifacts/fixture-stale-broadcast-closeout-finalization-summary-approval.json",
       sourcePath: "artifacts/fixture-stale-broadcast-closeout-finalization-summary-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
 
@@ -92,7 +90,7 @@ describe("broadcast closeout finalization fixture integration", () => {
     });
   });
 
-  it("blocks finalization verification when fixture status evidence is stale", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks finalization verification when fixture status evidence is stale (%s)", async (fixtureId) => {
     const evidence = await createFixtureBroadcastCloseoutFinalizationEvidence({
       objective: "Block stale fixture broadcast closeout finalization status",
       proposalPath: "artifacts/fixture-stale-broadcast-closeout-finalization-status-proposal.json",
@@ -101,12 +99,11 @@ describe("broadcast closeout finalization fixture integration", () => {
       approvalPath: "artifacts/fixture-stale-broadcast-closeout-finalization-status-approval.json",
       sourcePath: "artifacts/fixture-stale-broadcast-closeout-finalization-status-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const status = JSON.parse(evidence.params.statusJson);
-    status.transactions = 1;
+    status.transactions = 0;
 
     expect(
       verifyAgentProposalExecutionBroadcastCloseoutFinalization({
@@ -127,7 +124,7 @@ describe("broadcast closeout finalization fixture integration", () => {
     });
   });
 
-  it("blocks finalization verification when fixture closeout archive evidence is stale", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks finalization verification when fixture closeout archive evidence is stale (%s)", async (fixtureId) => {
     const evidence = await createFixtureBroadcastCloseoutFinalizationEvidence({
       objective: "Block stale fixture broadcast closeout finalization archive",
       proposalPath: "artifacts/fixture-stale-broadcast-closeout-finalization-archive-proposal.json",
@@ -136,8 +133,7 @@ describe("broadcast closeout finalization fixture integration", () => {
       approvalPath: "artifacts/fixture-stale-broadcast-closeout-finalization-archive-approval.json",
       sourcePath: "artifacts/fixture-stale-broadcast-closeout-finalization-archive-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const archive = JSON.parse(evidence.params.archiveJson);

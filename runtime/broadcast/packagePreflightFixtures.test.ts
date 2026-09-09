@@ -36,7 +36,7 @@ const BROADCAST_PREFLIGHT_PATH = "artifacts/fixture-agent-proposal-execution-bro
 const BROADCAST_PACKAGE_PATH = "artifacts/fixture-agent-proposal-execution-broadcast-package.json";
 
 describe("broadcast package/preflight fixture integration", () => {
-  it("packages verified fixture signed payload evidence for broadcast preparation", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("packages verified fixture signed payload evidence for broadcast preparation (%s)", async (fixtureId) => {
     const evidence = await createFixtureSignedPayloadEvidence({
       objective: "Package fixture signed payload broadcast evidence",
       proposalPath: "artifacts/fixture-broadcast-package-proposal.json",
@@ -45,8 +45,7 @@ describe("broadcast package/preflight fixture integration", () => {
       approvalPath: "artifacts/fixture-broadcast-package-approval.json",
       sourcePath: "artifacts/fixture-broadcast-package-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const preflight = await createAgentProposalExecutionBroadcastPreflight({
@@ -71,7 +70,7 @@ describe("broadcast package/preflight fixture integration", () => {
       connectedChainId: 84532,
       expectedNonce: 21,
       pendingNonce: 21,
-      transactions: 2,
+      transactions: 1,
       checks: [
         { name: "signed-payload", passed: true, failures: [] },
         { name: "chain", passed: true, failures: [] },
@@ -102,7 +101,6 @@ describe("broadcast package/preflight fixture integration", () => {
       pendingNonce: 21,
       transactions: [
         { index: 0, rawTransaction: JSON.parse(evidence.signedPayloadJson).transactions[0].rawTransaction },
-        { index: 1, rawTransaction: JSON.parse(evidence.signedPayloadJson).transactions[1].rawTransaction },
       ],
     });
     await expect(
@@ -124,7 +122,7 @@ describe("broadcast package/preflight fixture integration", () => {
     });
   });
 
-  it("blocks stale fixture signed payload evidence before broadcast submission preparation", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks stale fixture signed payload evidence before broadcast submission preparation (%s)", async (fixtureId) => {
     const evidence = await createFixtureSignedPayloadEvidence({
       objective: "Block stale fixture broadcast package",
       proposalPath: "artifacts/fixture-stale-broadcast-package-proposal.json",
@@ -133,8 +131,7 @@ describe("broadcast package/preflight fixture integration", () => {
       approvalPath: "artifacts/fixture-stale-broadcast-package-approval.json",
       sourcePath: "artifacts/fixture-stale-broadcast-package-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const staleSignedPayload = JSON.parse(evidence.signedPayloadJson);

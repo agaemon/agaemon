@@ -42,7 +42,7 @@ const FIRST_TX_HASH = `0x${"56".repeat(32)}` as const;
 const SECOND_TX_HASH = `0x${"78".repeat(32)}` as const;
 
 describe("broadcast submit/receipt fixture integration", () => {
-  it("creates receipt evidence from verified fixture broadcast package evidence", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("creates receipt evidence from verified fixture broadcast package evidence (%s)", async (fixtureId) => {
     const evidence = await createFixtureBroadcastPackageEvidence({
       objective: "Submit fixture broadcast package evidence",
       proposalPath: "artifacts/fixture-broadcast-submit-receipt-proposal.json",
@@ -51,8 +51,7 @@ describe("broadcast submit/receipt fixture integration", () => {
       approvalPath: "artifacts/fixture-broadcast-submit-receipt-approval.json",
       sourcePath: "artifacts/fixture-broadcast-submit-receipt-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const broadcastPackage = JSON.parse(evidence.broadcastPackageJson);
@@ -80,9 +79,8 @@ describe("broadcast submit/receipt fixture integration", () => {
 
     expect(sentTransactions).toEqual([
       broadcastPackage.transactions[0].rawTransaction,
-      broadcastPackage.transactions[1].rawTransaction,
     ]);
-    expect(waitedHashes).toEqual([FIRST_TX_HASH, SECOND_TX_HASH]);
+    expect(waitedHashes).toEqual([FIRST_TX_HASH]);
     expect(submitResult).toEqual({
       mode: "send",
       passed: true,
@@ -90,18 +88,12 @@ describe("broadcast submit/receipt fixture integration", () => {
       broadcastPackage: BROADCAST_PACKAGE_PATH,
       signer: SIGNER_ACCOUNT.address,
       chainId: 84532,
-      transactions: 2,
+      transactions: 1,
       submitted: [
         {
           index: 0,
           hash: FIRST_TX_HASH,
           blockNumber: "901",
-          status: "success",
-        },
-        {
-          index: 1,
-          hash: SECOND_TX_HASH,
-          blockNumber: "902",
           status: "success",
         },
       ],
@@ -144,7 +136,7 @@ describe("broadcast submit/receipt fixture integration", () => {
     });
   });
 
-  it("blocks stale fixture broadcast package evidence before receipt preparation", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks stale fixture broadcast package evidence before receipt preparation (%s)", async (fixtureId) => {
     const evidence = await createFixtureBroadcastPackageEvidence({
       objective: "Block stale fixture broadcast receipt evidence",
       proposalPath: "artifacts/fixture-stale-broadcast-receipt-proposal.json",
@@ -153,8 +145,7 @@ describe("broadcast submit/receipt fixture integration", () => {
       approvalPath: "artifacts/fixture-stale-broadcast-receipt-approval.json",
       sourcePath: "artifacts/fixture-stale-broadcast-receipt-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const staleBroadcastPackage = JSON.parse(evidence.broadcastPackageJson);
@@ -185,7 +176,7 @@ describe("broadcast submit/receipt fixture integration", () => {
       broadcastPackage: BROADCAST_PACKAGE_PATH,
       signer: SIGNER_ACCOUNT.address,
       chainId: 84532,
-      transactions: 2,
+      transactions: 1,
       submitted: [],
     });
 

@@ -15,20 +15,19 @@ import { verifyAgentProposalReviewPreflight } from "./preflight.js";
 const GENERATED_AT = "2026-06-28T15:45:00.000Z";
 
 describe("proposal review fixture integration", () => {
-  it("preflights and packages saved executable fixture proposal evidence", async () => {
-    const allowedSwap = getPolicyDecisionFixture("allowed-swap");
-    const allowedMemory = getPolicyDecisionFixture("allowed-memory");
+  it.each(["allowed-swap", "allowed-memory"] as const)("preflights and packages saved executable fixture proposal evidence (%s)", async (fixtureId) => {
+    const allowedSwap = getPolicyDecisionFixture(fixtureId);
     const fixture = await createFixtureReviewEvidence({
       objective: "Review allowed fixture proposal",
       proposalPath: "artifacts/fixture-allowed-proposal.json",
       summaryPath: "artifacts/fixture-allowed-proposal.md",
       sourcePath: "artifacts/fixture-allowed-plan.json",
-      fixtures: [allowedSwap, allowedMemory],
+      fixtures: [allowedSwap],
     });
 
     expect(fixture.summaryMarkdown).toContain("# Agent Proposal Review");
-    expect(fixture.summaryMarkdown).toContain("| Allowed Decisions | 2 |");
-    expect(fixture.summaryMarkdown).toContain("| Transactions | 2 |");
+    expect(fixture.summaryMarkdown).toContain("| Allowed Decisions | 1 |");
+    expect(fixture.summaryMarkdown).toContain("| Transactions | 1 |");
     expect(
       verifyAgentProposalReviewPreflight({
         proposalPath: fixture.proposalPath,
@@ -44,8 +43,8 @@ describe("proposal review fixture integration", () => {
       sourcePath: "artifacts/fixture-allowed-plan.json",
       chainId: 84532,
       executable: true,
-      steps: 2,
-      transactions: 2,
+      steps: 1,
+      transactions: 1,
       checks: [
         { name: "proposal-artifact", passed: true, failures: [] },
         { name: "proposal-summary", passed: true, failures: [] },

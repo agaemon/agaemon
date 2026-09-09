@@ -15,16 +15,15 @@ const GENERATED_AT = "2026-06-28T16:10:00.000Z";
 const REVIEWER = "0x0000000000000000000000000000000000000c01";
 
 describe("proposal review approval fixture integration", () => {
-  it("approves executable fixture review packages and verifies the saved approval", async () => {
-    const allowedSwap = getPolicyDecisionFixture("allowed-swap");
-    const allowedMemory = getPolicyDecisionFixture("allowed-memory");
+  it.each(["allowed-swap", "allowed-memory"] as const)("approves executable fixture review packages and verifies the saved approval (%s)", async (fixtureId) => {
+    const allowedSwap = getPolicyDecisionFixture(fixtureId);
     const evidence = await createFixtureReviewPackage({
       objective: "Approve allowed fixture package",
       proposalPath: "artifacts/fixture-allowed-proposal.json",
       summaryPath: "artifacts/fixture-allowed-proposal.md",
       manifestPath: "artifacts/fixture-allowed-proposal-review.json",
       sourcePath: "artifacts/fixture-allowed-plan.json",
-      fixtures: [allowedSwap, allowedMemory],
+      fixtures: [allowedSwap],
     });
 
     const approval = createAgentProposalReviewApproval({
@@ -38,7 +37,7 @@ describe("proposal review approval fixture integration", () => {
     expect(approval.failures).toEqual([]);
     expect(approval.approval?.decision).toBe("approved");
     expect(approval.approval?.preflight.executable).toBe(true);
-    expect(approval.approval?.preflight.transactions).toBe(2);
+    expect(approval.approval?.preflight.transactions).toBe(1);
     expect(
       verifyAgentProposalReviewApproval({
         ...evidence,
@@ -104,21 +103,20 @@ describe("proposal review approval fixture integration", () => {
     });
   });
 
-  it("blocks approval creation when fixture package summary evidence is stale", async () => {
-    const allowedSwap = getPolicyDecisionFixture("allowed-swap");
-    const allowedMemory = getPolicyDecisionFixture("allowed-memory");
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks approval creation when fixture package summary evidence is stale (%s)", async (fixtureId) => {
+    const allowedSwap = getPolicyDecisionFixture(fixtureId);
     const evidence = await createFixtureReviewPackage({
       objective: "Block stale fixture package",
       proposalPath: "artifacts/fixture-stale-proposal.json",
       summaryPath: "artifacts/fixture-stale-proposal.md",
       manifestPath: "artifacts/fixture-stale-proposal-review.json",
       sourcePath: "artifacts/fixture-stale-plan.json",
-      fixtures: [allowedSwap, allowedMemory],
+      fixtures: [allowedSwap],
     });
     const staleSummary = replaceSummaryRow(
       evidence.summaryMarkdown,
-      "| Transactions | 2 |",
       "| Transactions | 1 |",
+      "| Transactions | 0 |",
     );
 
     expect(

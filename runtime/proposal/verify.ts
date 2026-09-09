@@ -45,7 +45,15 @@ export function verifyAgentProposalArtifact(json: string): AgentProposalArtifact
     if (result.hasTransaction) transactionCount += 1;
   });
 
+  if (artifact.validationStatus !== undefined && steps !== undefined) {
+    const expectedStatus = allowedDecisionCount !== steps.length
+      ? "policy-denied"
+      : steps.length > 1 ? "sequence-unverified" : "single-step-policy-allowed";
+    if (artifact.validationStatus !== expectedStatus) failures.push("validationStatus must match independent policy checks");
+  }
+
   if (artifact.executable === true && steps !== undefined) {
+    if (steps.length > 1) failures.push("multi-step proposals require sequence validation and cannot be executable");
     if (allowedDecisionCount !== steps.length) failures.push("executable proposals must only contain allowed decisions");
     if (transactionCount !== steps.length) failures.push("executable proposals must include transaction payloads for every step");
   }

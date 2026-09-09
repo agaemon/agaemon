@@ -29,7 +29,7 @@ const READINESS_PATH = "artifacts/fixture-agent-proposal-execution-readiness.jso
 const PAYLOAD_PATH = "artifacts/fixture-agent-proposal-execution-signing-payload.json";
 
 describe("proposal execution readiness/signing fixture integration", () => {
-  it("creates reproducible readiness and signing payload evidence from verified fixture handoffs", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("creates reproducible readiness and signing payload evidence from verified fixture handoffs (%s)", async (fixtureId) => {
     const evidence = await createFixtureHandoffEvidence({
       objective: "Create fixture readiness signing payload",
       proposalPath: "artifacts/fixture-readiness-signing-proposal.json",
@@ -38,8 +38,7 @@ describe("proposal execution readiness/signing fixture integration", () => {
       approvalPath: "artifacts/fixture-readiness-signing-approval.json",
       sourcePath: "artifacts/fixture-readiness-signing-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
 
@@ -68,8 +67,10 @@ describe("proposal execution readiness/signing fixture integration", () => {
     const readinessJson = JSON.stringify(readiness, null, 2);
 
     expect(gasCalls).toEqual([
-      expect.objectContaining({ account: SIGNER, to: getPolicyDecisionFixture("allowed-swap").agent, value: 123n }),
-      expect.objectContaining({ account: SIGNER, to: getPolicyDecisionFixture("allowed-swap").agent, value: 0n }),
+      expect.objectContaining({
+        account: SIGNER, to: getPolicyDecisionFixture(fixtureId).agent,
+        value: getPolicyDecisionFixture(fixtureId).action.value,
+      }),
     ]);
     expect(readiness).toMatchObject({
       passed: true,
@@ -79,8 +80,11 @@ describe("proposal execution readiness/signing fixture integration", () => {
       connectedChainId: 84532,
       pendingNonce: 13,
       transactions: [
-        { index: 0, stepId: "allowed-swap", title: "Allowed swap action", value: "123", gasEstimate: "31000" },
-        { index: 1, stepId: "allowed-memory", title: "Allowed memory commitment", value: "0", gasEstimate: "42000" },
+        {
+          index: 0, stepId: fixtureId, title: getPolicyDecisionFixture(fixtureId).title,
+          value: getPolicyDecisionFixture(fixtureId).action.value.toString(),
+          gasEstimate: fixtureId === "allowed-swap" ? "31000" : "42000",
+        },
       ],
     });
     expect(
@@ -117,19 +121,11 @@ describe("proposal execution readiness/signing fixture integration", () => {
       transactions: [
         expect.objectContaining({
           index: 0,
-          stepId: "allowed-swap",
-          title: "Allowed swap action",
+          stepId: fixtureId,
+          title: getPolicyDecisionFixture(fixtureId).title,
           nonce: 13,
-          value: "123",
-          gasLimit: "31000",
-        }),
-        expect.objectContaining({
-          index: 1,
-          stepId: "allowed-memory",
-          title: "Allowed memory commitment",
-          nonce: 14,
-          value: "0",
-          gasLimit: "42000",
+          value: getPolicyDecisionFixture(fixtureId).action.value.toString(),
+          gasLimit: fixtureId === "allowed-swap" ? "31000" : "42000",
         }),
       ],
     });
@@ -171,7 +167,7 @@ describe("proposal execution readiness/signing fixture integration", () => {
       signer: SIGNER,
       chainId: 84532,
       nonceStart: 13,
-      transactions: 2,
+      transactions: 1,
       checks: [
         { name: "execution-readiness", passed: true, failures: [] },
         { name: "signing-payload", passed: true, failures: [] },
@@ -179,7 +175,7 @@ describe("proposal execution readiness/signing fixture integration", () => {
     });
   });
 
-  it("blocks stale fixture handoff evidence before signing payload preparation", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks stale fixture handoff evidence before signing payload preparation (%s)", async (fixtureId) => {
     const evidence = await createFixtureHandoffEvidence({
       objective: "Block stale fixture signing handoff",
       proposalPath: "artifacts/fixture-stale-signing-proposal.json",
@@ -188,8 +184,7 @@ describe("proposal execution readiness/signing fixture integration", () => {
       approvalPath: "artifacts/fixture-stale-signing-approval.json",
       sourcePath: "artifacts/fixture-stale-signing-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const staleRunbookMarkdown = evidence.runbookMarkdown.replace(

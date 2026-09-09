@@ -27,6 +27,28 @@ const PATHS = {
 };
 
 describe("createAgentOsPlanWorkflowPackage", () => {
+  it("retains multi-step diagnostics but blocks approved execution handoff", async () => {
+    const result = await createAgentOsPlanWorkflowPackage({
+      ...PATHS,
+      agent: AGENT,
+      objective: "Review independently allowed steps",
+      steps: [createPlanStep(), { ...createPlanStep(), id: "step-2" }],
+      simulatePolicy: async (): Promise<PolicyDecision> => ({ allowed: true, code: "Allowed" }),
+      reviewer: REVIEWER,
+      decision: "approved",
+      generatedAt: GENERATED_AT,
+    });
+    expect(result.proposal.validationStatus).toBe("sequence-unverified");
+    expect(result.proposal.steps.map((step) => step.decision.allowed)).toEqual([true, true]);
+    expect(result.proposalArtifact.output.validationStatus).toBe("sequence-unverified");
+    expect(result.proposalArtifact.output.steps.map((step) => step.transaction)).toEqual([null, null]);
+    expect(result.workflow.reviewPackage.passed).toBe(true);
+    expect(result.workflow.files.summary.markdown).toContain("Sequence execution, cumulative limits, and step dependencies are unverified");
+    expect(result.passed).toBe(false);
+    expect(result.workflow.executionBundle).toBeNull();
+    expect(result.workflow.executionHandoff).toBeNull();
+  });
+
   it("simulates an allowed typed plan and packages local execution handoff evidence", async () => {
     const result = await createAgentOsPlanWorkflowPackage({
       ...PATHS,

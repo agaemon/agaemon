@@ -20,9 +20,8 @@ const RUNBOOK_PATH = "artifacts/fixture-agent-proposal-execution-runbook.md";
 const BUNDLE_PATH = "artifacts/fixture-agent-proposal-execution-bundle.json";
 
 describe("proposal execution fixture integration", () => {
-  it("packages approved executable fixture review evidence and passes execution preflight", async () => {
-    const allowedSwap = getPolicyDecisionFixture("allowed-swap");
-    const allowedMemory = getPolicyDecisionFixture("allowed-memory");
+  it.each(["allowed-swap", "allowed-memory"] as const)("packages approved executable fixture review evidence and passes execution preflight (%s)", async (fixtureId) => {
+    const allowedSwap = getPolicyDecisionFixture(fixtureId);
     const evidence = await createFixtureExecutionEvidence({
       objective: "Package approved fixture execution",
       proposalPath: "artifacts/fixture-execution-proposal.json",
@@ -30,7 +29,7 @@ describe("proposal execution fixture integration", () => {
       manifestPath: "artifacts/fixture-execution-review.json",
       approvalPath: "artifacts/fixture-execution-approval.json",
       sourcePath: "artifacts/fixture-execution-plan.json",
-      fixtures: [allowedSwap, allowedMemory],
+      fixtures: [allowedSwap],
       decision: "approved",
     });
 
@@ -60,7 +59,7 @@ describe("proposal execution fixture integration", () => {
       proposal: "artifacts/fixture-execution-proposal.json",
       summary: "artifacts/fixture-execution-proposal.md",
       chainId: 84532,
-      transactions: 2,
+      transactions: 1,
       checks: [
         { name: "execution-preview", passed: true, failures: [] },
         { name: "execution-runbook", passed: true, failures: [] },
@@ -69,9 +68,8 @@ describe("proposal execution fixture integration", () => {
     });
   });
 
-  it("blocks rejected fixture approval evidence from execution packaging", async () => {
-    const allowedSwap = getPolicyDecisionFixture("allowed-swap");
-    const allowedMemory = getPolicyDecisionFixture("allowed-memory");
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks rejected fixture approval evidence from execution packaging (%s)", async (fixtureId) => {
+    const allowedSwap = getPolicyDecisionFixture(fixtureId);
     const objective = "Create fixture execution approval decision";
     const approvedEvidence = await createFixtureExecutionEvidence({
       objective,
@@ -80,7 +78,7 @@ describe("proposal execution fixture integration", () => {
       manifestPath: "artifacts/fixture-rejected-review.json",
       approvalPath: "artifacts/fixture-rejected-approval.json",
       sourcePath: "artifacts/fixture-rejected-plan.json",
-      fixtures: [allowedSwap, allowedMemory],
+      fixtures: [allowedSwap],
       decision: "approved",
     });
     const rejectedEvidence = await createFixtureExecutionEvidence({
@@ -90,7 +88,7 @@ describe("proposal execution fixture integration", () => {
       manifestPath: "artifacts/fixture-rejected-review.json",
       approvalPath: "artifacts/fixture-rejected-approval.json",
       sourcePath: "artifacts/fixture-rejected-plan.json",
-      fixtures: [allowedSwap, allowedMemory],
+      fixtures: [allowedSwap],
       decision: "rejected",
       skipBundle: true,
     });
@@ -113,9 +111,8 @@ describe("proposal execution fixture integration", () => {
     });
   });
 
-  it("blocks stale fixture approval evidence from execution packaging", async () => {
-    const allowedSwap = getPolicyDecisionFixture("allowed-swap");
-    const allowedMemory = getPolicyDecisionFixture("allowed-memory");
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks stale fixture approval evidence from execution packaging (%s)", async (fixtureId) => {
+    const allowedSwap = getPolicyDecisionFixture(fixtureId);
     const evidence = await createFixtureExecutionEvidence({
       objective: "Block stale fixture execution approval",
       proposalPath: "artifacts/fixture-stale-execution-proposal.json",
@@ -123,7 +120,7 @@ describe("proposal execution fixture integration", () => {
       manifestPath: "artifacts/fixture-stale-execution-review.json",
       approvalPath: "artifacts/fixture-stale-execution-approval.json",
       sourcePath: "artifacts/fixture-stale-execution-plan.json",
-      fixtures: [allowedSwap, allowedMemory],
+      fixtures: [allowedSwap],
       decision: "approved",
     });
     const staleApproval = {

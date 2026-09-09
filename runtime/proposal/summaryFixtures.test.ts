@@ -9,7 +9,7 @@ import { createAgentProposalOutput } from "./output.js";
 import { createAgentProposalSummary } from "./summary.js";
 
 describe("createAgentProposalSummary fixture integration", () => {
-  it("renders readable decision and transaction counts for executable fixture artifacts", async () => {
+  it("renders readable decision and transaction counts for unverified fixture sequences", async () => {
     const allowedSwap = getPolicyDecisionFixture("allowed-swap");
     const allowedMemory = getPolicyDecisionFixture("allowed-memory");
     const artifact = await createFixtureArtifact({
@@ -24,15 +24,16 @@ describe("createAgentProposalSummary fixture integration", () => {
     });
 
     expect(summary.passed).toBe(true);
-    expect(summary.markdown).toContain("| Executable | yes |");
+    expect(summary.markdown).toContain("| Executable | no |");
     expect(summary.markdown).toContain("| Steps | 2 |");
     expect(summary.markdown).toContain("| Allowed Decisions | 2 |");
     expect(summary.markdown).toContain("| Denied Decisions | 0 |");
-    expect(summary.markdown).toContain("| Transactions | 2 |");
+    expect(summary.markdown).toContain("| Transactions | 0 |");
     expect(summary.markdown).toContain(
-      `| ${allowedSwap.id} | ${allowedSwap.title} | Allowed | ${allowedSwap.action.target} | ${allowedSwap.action.value} | present |`,
+      `| ${allowedSwap.id} | ${allowedSwap.title} | Allowed | ${allowedSwap.action.target} | ${allowedSwap.action.value} | suppressed |`,
     );
-    expect(summary.transactions).toBe(2);
+    expect(summary.transactions).toBe(0);
+    expect(summary.markdown).toContain("Sequence execution, cumulative limits, and step dependencies are unverified");
   });
 
   it("renders readable decision and transaction counts for denied fixture artifacts", async () => {

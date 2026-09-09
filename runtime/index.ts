@@ -434,6 +434,7 @@ export type {
 } from "./proposalReview/approvalVerify.js";
 export type {
   AgentPlanProposal,
+  AgentPlanValidationStatus,
   AgentPlanProposalDocument,
   AgentPlanProposalStep,
   AgentPlanStepIntent,
