@@ -19,6 +19,7 @@ describe("agent proposal output", () => {
       objective: "Dry-run a structured plan",
       agent: AGENT,
       executable: true,
+      validationStatus: "single-step-policy-allowed",
       steps: [
         {
           id: "step-1",
@@ -58,6 +59,7 @@ describe("agent proposal output", () => {
       objective: "Dry-run a structured plan",
       agent: AGENT,
       executable: true,
+      validationStatus: "single-step-policy-allowed",
       steps: [
         {
           id: "step-1",
@@ -88,6 +90,7 @@ describe("agent proposal output", () => {
       objective: "Dry-run operator intents",
       agent: AGENT,
       executable: false,
+      validationStatus: "policy-denied",
       steps: [
         {
           id: "intent-1",
@@ -130,6 +133,7 @@ describe("agent proposal output", () => {
       intent: "artifacts/example-agent-intents.json",
       output: "artifacts/example-agent-intent-proposal.json",
       executable: false,
+      validationStatus: "policy-denied",
       steps: 1,
       written: true,
     });

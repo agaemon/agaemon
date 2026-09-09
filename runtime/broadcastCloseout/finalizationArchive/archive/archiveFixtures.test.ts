@@ -18,7 +18,7 @@ import {
 } from "../../fixtures/closeoutEvidence.js";
 
 describe("broadcast closeout finalization archive fixture integration", () => {
-  it("creates and verifies fixture finalization archive evidence from saved finalization status artifacts", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("creates and verifies fixture finalization archive evidence from saved finalization status artifacts (%s)", async (fixtureId) => {
     const evidence = await createFixtureBroadcastCloseoutFinalizationArchiveEvidence({
       objective: "Create fixture broadcast closeout finalization archive",
       proposalPath: "artifacts/fixture-broadcast-closeout-finalization-archive-proposal.json",
@@ -27,8 +27,7 @@ describe("broadcast closeout finalization archive fixture integration", () => {
       approvalPath: "artifacts/fixture-broadcast-closeout-finalization-archive-approval.json",
       sourcePath: "artifacts/fixture-broadcast-closeout-finalization-archive-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
 
@@ -55,7 +54,7 @@ describe("broadcast closeout finalization archive fixture integration", () => {
     });
   });
 
-  it("rejects stale saved fixture finalization archive hashes", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("rejects stale saved fixture finalization archive hashes (%s)", async (fixtureId) => {
     const evidence = await createFixtureBroadcastCloseoutFinalizationArchiveEvidence({
       objective: "Reject stale fixture broadcast closeout finalization archive hash",
       proposalPath: "artifacts/fixture-stale-broadcast-closeout-finalization-archive-hash-proposal.json",
@@ -64,8 +63,7 @@ describe("broadcast closeout finalization archive fixture integration", () => {
       approvalPath: "artifacts/fixture-stale-broadcast-closeout-finalization-archive-hash-approval.json",
       sourcePath: "artifacts/fixture-stale-broadcast-closeout-finalization-archive-hash-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const archive = JSON.parse(evidence.params.finalizationArchiveJson);
@@ -82,7 +80,7 @@ describe("broadcast closeout finalization archive fixture integration", () => {
     });
   });
 
-  it("blocks archive verification when fixture finalization status evidence is stale", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks archive verification when fixture finalization status evidence is stale (%s)", async (fixtureId) => {
     const evidence = await createFixtureBroadcastCloseoutFinalizationArchiveEvidence({
       objective: "Block stale fixture broadcast closeout finalization archive status",
       proposalPath: "artifacts/fixture-stale-broadcast-closeout-finalization-archive-status-proposal.json",
@@ -91,12 +89,11 @@ describe("broadcast closeout finalization archive fixture integration", () => {
       approvalPath: "artifacts/fixture-stale-broadcast-closeout-finalization-archive-status-approval.json",
       sourcePath: "artifacts/fixture-stale-broadcast-closeout-finalization-archive-status-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const status = JSON.parse(evidence.params.finalizationStatusJson);
-    status.transactions = 1;
+    status.transactions = 0;
     const finalizationStatusJson = `${JSON.stringify(status, null, 2)}\n`;
 
     expect(

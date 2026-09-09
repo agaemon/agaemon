@@ -35,6 +35,19 @@ npm run base:agent-intent-proposal
 npm run base:agent-plan-proposal
 ```
 
+Plan and intent proposals check each action's policy independently. Their
+`validationStatus` is `single-step-policy-allowed`, `policy-denied`, or
+`sequence-unverified`. Only one allowed step receives `executable: true` and a
+transaction payload; this is policy eligibility, not proof of successful execution.
+
+Multi-step proposals retain all action details and policy decisions, but return
+`executable: false` with every transaction set to `null`. The proposal CLIs still
+print or write that diagnostic artifact and exit with code 1. Cumulative spending,
+balance changes, and step dependencies need stateful sequence validation, which
+is not implemented. Saved multi-step artifacts marked executable are rejected
+by proposal verification and cannot enter the review-to-execution handoff. Legacy
+single-step artifacts remain supported. Approval does not override these checks.
+
 ## base
 
 Entry points: `runtime/cli/base/`.

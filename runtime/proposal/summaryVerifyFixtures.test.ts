@@ -10,7 +10,7 @@ import { createAgentProposalSummary } from "./summary.js";
 import { verifyAgentProposalSummary } from "./summaryVerify.js";
 
 describe("verifyAgentProposalSummary fixture integration", () => {
-  it("accepts saved executable fixture summaries and rejects stale allowed decision and transaction counts", async () => {
+  it("accepts saved unverified sequence summaries and rejects stale allowed decision and transaction counts", async () => {
     const allowedSwap = getPolicyDecisionFixture("allowed-swap");
     const allowedMemory = getPolicyDecisionFixture("allowed-memory");
     const proposalPath = "artifacts/fixture-allowed-proposal.json";
@@ -38,7 +38,7 @@ describe("verifyAgentProposalSummary fixture integration", () => {
       proposalPath,
       proposalJson,
       expectedSummary: savedSummary,
-      summaryMarkdown: replaceSummaryRow(savedSummary, "| Transactions | 2 |", "| Transactions | 1 |"),
+      summaryMarkdown: replaceSummaryRow(savedSummary, "| Transactions | 0 |", "| Transactions | 1 |"),
     });
   });
 

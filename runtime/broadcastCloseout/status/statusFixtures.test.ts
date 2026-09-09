@@ -20,8 +20,8 @@ import {
 } from "../fixtures/closeoutEvidence.js";
 
 describe("broadcast closeout status fixture integration", () => {
-  it("renders and verifies status output from verified fixture closeout evidence", async () => {
-    const evidence = await createFixtureCloseoutEvidence({
+  it.each(["allowed-swap", "allowed-memory"] as const)("renders and verifies status output from verified fixture closeout evidence (%s)", async (fixtureId) => {
+    const evidence = await createFixtureCloseoutEvidence(fixtureId, {
       objective: "Render fixture broadcast closeout status",
       proposalPath: "artifacts/fixture-broadcast-closeout-status-proposal.json",
       summaryPath: "artifacts/fixture-broadcast-closeout-status-proposal.md",
@@ -52,7 +52,7 @@ describe("broadcast closeout status fixture integration", () => {
       submitResult: SUBMIT_RESULT_PATH,
       signer: SIGNER_ACCOUNT.address,
       chainId: 84532,
-      transactions: 2,
+      transactions: 1,
       checks: [
         { name: "broadcast-report", passed: true, failures: [] },
         { name: "broadcast-archive", passed: true, failures: [] },
@@ -71,8 +71,8 @@ describe("broadcast closeout status fixture integration", () => {
     });
   });
 
-  it("blocks stale fixture closeout evidence during status verification", async () => {
-    const evidence = await createFixtureCloseoutEvidence({
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks stale fixture closeout evidence during status verification (%s)", async (fixtureId) => {
+    const evidence = await createFixtureCloseoutEvidence(fixtureId, {
       objective: "Block stale fixture broadcast closeout status",
       proposalPath: "artifacts/fixture-stale-broadcast-closeout-status-proposal.json",
       summaryPath: "artifacts/fixture-stale-broadcast-closeout-status-proposal.md",
@@ -103,7 +103,7 @@ describe("broadcast closeout status fixture integration", () => {
   });
 });
 
-async function createFixtureCloseoutEvidence(params: {
+async function createFixtureCloseoutEvidence(fixtureId: "allowed-swap" | "allowed-memory", params: {
   objective: string;
   proposalPath: string;
   summaryPath: string;
@@ -114,8 +114,7 @@ async function createFixtureCloseoutEvidence(params: {
   const receiptEvidence = await createFixtureBroadcastReceiptEvidence({
     ...params,
     fixtures: [
-      getPolicyDecisionFixture("allowed-swap"),
-      getPolicyDecisionFixture("allowed-memory"),
+      getPolicyDecisionFixture(fixtureId),
     ],
   });
   const closeout = createAgentProposalExecutionBroadcastCloseout({

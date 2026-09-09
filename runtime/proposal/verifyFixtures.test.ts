@@ -9,7 +9,7 @@ import { createAgentProposalOutput } from "./output.js";
 import { verifyAgentProposalArtifact } from "./verify.js";
 
 describe("verifyAgentProposalArtifact fixture integration", () => {
-  it("accepts serialized executable fixture proposal artifacts", async () => {
+  it("accepts serialized unverified sequence artifacts", async () => {
     const allowedSwap = getPolicyDecisionFixture("allowed-swap");
     const allowedMemory = getPolicyDecisionFixture("allowed-memory");
     const proposal = await createAgentPlanProposal({
@@ -43,9 +43,9 @@ describe("verifyAgentProposalArtifact fixture integration", () => {
       source: "plan",
       sourcePath: "artifacts/fixture-allowed-plan.json",
       chainId: 84532,
-      executable: true,
+      executable: false,
       steps: 2,
-      transactions: 2,
+      transactions: 0,
     });
   });
 

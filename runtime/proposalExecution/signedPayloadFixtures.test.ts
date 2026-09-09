@@ -32,7 +32,7 @@ const PAYLOAD_PATH = "artifacts/fixture-agent-proposal-execution-signing-payload
 const SIGNED_PAYLOAD_PATH = "artifacts/fixture-agent-proposal-execution-signed-payload.json";
 
 describe("proposal execution signed-payload fixture integration", () => {
-  it("verifies fixture signed payload evidence before broadcast preparation", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("verifies fixture signed payload evidence before broadcast preparation (%s)", async (fixtureId) => {
     const evidence = await createFixtureSignedPayloadEvidence({
       objective: "Verify fixture signed payload evidence",
       proposalPath: "artifacts/fixture-signed-payload-proposal.json",
@@ -41,8 +41,7 @@ describe("proposal execution signed-payload fixture integration", () => {
       approvalPath: "artifacts/fixture-signed-payload-approval.json",
       sourcePath: "artifacts/fixture-signed-payload-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
 
@@ -57,12 +56,12 @@ describe("proposal execution signed-payload fixture integration", () => {
         signer: SIGNER_ACCOUNT.address,
         chainId: 84532,
         nonceStart: 21,
-        transactions: 2,
+        transactions: 1,
       }),
     });
   });
 
-  it("blocks stale fixture readiness evidence before downstream broadcast preparation", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks stale fixture readiness evidence before downstream broadcast preparation (%s)", async (fixtureId) => {
     const evidence = await createFixtureSignedPayloadEvidence({
       objective: "Block stale signed payload readiness",
       proposalPath: "artifacts/fixture-stale-readiness-signed-payload-proposal.json",
@@ -71,8 +70,7 @@ describe("proposal execution signed-payload fixture integration", () => {
       approvalPath: "artifacts/fixture-stale-readiness-signed-payload-approval.json",
       sourcePath: "artifacts/fixture-stale-readiness-signed-payload-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const staleReadiness = JSON.parse(evidence.readinessJson);
@@ -88,7 +86,7 @@ describe("proposal execution signed-payload fixture integration", () => {
     expect(verification.failures).toContain("saved signing payload does not match current signing payload");
   });
 
-  it("blocks stale fixture signing payload evidence before downstream broadcast preparation", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks stale fixture signing payload evidence before downstream broadcast preparation (%s)", async (fixtureId) => {
     const evidence = await createFixtureSignedPayloadEvidence({
       objective: "Block stale signed payload artifact",
       proposalPath: "artifacts/fixture-stale-payload-signed-payload-proposal.json",
@@ -97,12 +95,11 @@ describe("proposal execution signed-payload fixture integration", () => {
       approvalPath: "artifacts/fixture-stale-payload-signed-payload-approval.json",
       sourcePath: "artifacts/fixture-stale-payload-signed-payload-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const stalePayload = JSON.parse(evidence.payloadJson);
-    stalePayload.transactions[1].nonce = 99;
+    stalePayload.transactions[0].nonce = 99;
 
     const verification = await verifyAgentProposalExecutionSignedPayload({
       ...evidence,
@@ -113,7 +110,7 @@ describe("proposal execution signed-payload fixture integration", () => {
     expect(verification.preflight.passed).toBe(false);
     expect(verification.failures).toContain("saved signing payload does not match current signing payload");
     expect(verification.failures).toContain("signed payload signingPayload.sha256 must match payload JSON");
-    expect(verification.failures).toContain("signed transaction 1 nonce does not match signing payload");
+    expect(verification.failures).toContain("signed transaction 0 nonce does not match signing payload");
   });
 });
 

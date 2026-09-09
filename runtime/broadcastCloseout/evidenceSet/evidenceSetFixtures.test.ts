@@ -16,7 +16,7 @@ import {
 } from "../fixtures/closeoutEvidence.js";
 
 describe("broadcast closeout evidence-set fixture integration", () => {
-  it("creates and verifies fixture report, archive, and status evidence together", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("creates and verifies fixture report, archive, and status evidence together (%s)", async (fixtureId) => {
     const closeoutEvidence = await createFixtureBroadcastCloseoutEvidence({
       objective: "Build fixture broadcast closeout evidence set",
       proposalPath: "artifacts/fixture-broadcast-closeout-evidence-set-proposal.json",
@@ -25,8 +25,7 @@ describe("broadcast closeout evidence-set fixture integration", () => {
       approvalPath: "artifacts/fixture-broadcast-closeout-evidence-set-approval.json",
       sourcePath: "artifacts/fixture-broadcast-closeout-evidence-set-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
 
@@ -44,7 +43,7 @@ describe("broadcast closeout evidence-set fixture integration", () => {
     expect(evidenceSet.archive).toEqual(closeoutEvidence.archive);
     expect(evidenceSet.status).toEqual({
       path: CLOSEOUT_STATUS_PATH,
-      json: expect.stringContaining(`"transactions": 2`),
+      json: expect.stringContaining(`"transactions": 1`),
     });
     expect(JSON.parse(evidenceSet.status?.json ?? "{}")).toEqual({
       passed: true,
@@ -55,7 +54,7 @@ describe("broadcast closeout evidence-set fixture integration", () => {
       submitResult: SUBMIT_RESULT_PATH,
       signer: SIGNER_ACCOUNT.address,
       chainId: 84532,
-      transactions: 2,
+      transactions: 1,
       checks: [
         { name: "broadcast-report", passed: true, failures: [] },
         { name: "broadcast-archive", passed: true, failures: [] },
@@ -78,7 +77,7 @@ describe("broadcast closeout evidence-set fixture integration", () => {
     });
   });
 
-  it("blocks stale fixture status JSON during evidence-set verification", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks stale fixture status JSON during evidence-set verification (%s)", async (fixtureId) => {
     const closeoutEvidence = await createFixtureBroadcastCloseoutEvidence({
       objective: "Block stale fixture broadcast closeout evidence-set status",
       proposalPath: "artifacts/fixture-stale-broadcast-closeout-evidence-set-status-proposal.json",
@@ -87,12 +86,11 @@ describe("broadcast closeout evidence-set fixture integration", () => {
       approvalPath: "artifacts/fixture-stale-broadcast-closeout-evidence-set-status-approval.json",
       sourcePath: "artifacts/fixture-stale-broadcast-closeout-evidence-set-status-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const status = JSON.parse(closeoutEvidence.statusJson);
-    status.transactions = 1;
+    status.transactions = 0;
 
     expect(
       verifyAgentProposalExecutionBroadcastCloseoutEvidenceSet({
@@ -114,7 +112,7 @@ describe("broadcast closeout evidence-set fixture integration", () => {
     });
   });
 
-  it("blocks stale fixture closeout archive evidence during evidence-set verification", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks stale fixture closeout archive evidence during evidence-set verification (%s)", async (fixtureId) => {
     const closeoutEvidence = await createFixtureBroadcastCloseoutEvidence({
       objective: "Block stale fixture broadcast closeout evidence-set archive",
       proposalPath: "artifacts/fixture-stale-broadcast-closeout-evidence-set-archive-proposal.json",
@@ -123,8 +121,7 @@ describe("broadcast closeout evidence-set fixture integration", () => {
       approvalPath: "artifacts/fixture-stale-broadcast-closeout-evidence-set-archive-approval.json",
       sourcePath: "artifacts/fixture-stale-broadcast-closeout-evidence-set-archive-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const staleArchive = JSON.parse(closeoutEvidence.archive.json);

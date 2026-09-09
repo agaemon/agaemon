@@ -31,6 +31,7 @@ export type JsonAgentProposalOutput = {
   objective: string;
   agent: string;
   executable: boolean;
+  validationStatus: AgentPlanProposal["validationStatus"];
   steps: JsonAgentProposalStep[];
 } & JsonAgentProposalSource;
 
@@ -62,6 +63,7 @@ export type JsonAgentProposalWriteSummary = {
   manifest: string;
   output: string;
   executable: boolean;
+  validationStatus: AgentPlanProposal["validationStatus"];
   steps: number;
   written: true;
 } & JsonAgentProposalSource;
@@ -85,6 +87,7 @@ export function createAgentProposalOutput(params: CreateAgentProposalOutputParam
     objective: params.proposal.objective,
     agent: params.proposal.agent,
     executable: params.proposal.executable,
+    validationStatus: params.proposal.validationStatus,
     steps: params.proposal.steps.map((step) => ({
       id: step.id,
       title: step.title,
@@ -105,6 +108,7 @@ export function createAgentProposalWriteSummary(
     ...formatSource(params.source),
     output: params.outputPath,
     executable: params.proposal.executable,
+    validationStatus: params.proposal.validationStatus,
     steps: params.proposal.steps.length,
     written: true,
   };

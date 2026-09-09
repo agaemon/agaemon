@@ -85,6 +85,10 @@ function renderMarkdown(
     `| Denied Decisions | ${countDecisions(artifact, false)} |`,
     `| Transactions | ${verification.transactions} |`,
     "",
+    ...(artifact.steps.length > 1 ? [
+      "Policy decisions were checked independently. Sequence execution, cumulative limits, and step dependencies are unverified. Transaction payloads are withheld.",
+      "",
+    ] : []),
     "| Step | Title | Decision | Target | Value Wei | Transaction |",
     "| --- | --- | --- | --- | --- | --- |",
     ...artifact.steps.map((step) => {

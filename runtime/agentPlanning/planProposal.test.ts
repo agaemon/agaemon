@@ -62,6 +62,30 @@ describe("parseAgentPlanProposalDocument", () => {
 });
 
 describe("createAgentPlanProposal", () => {
+  it("withholds a sequence whose independent checks miss cumulative spending", async () => {
+    const dailyLimit = 15n;
+    const steps = [1, 2].map((id) => ({
+      id: `step-${id}`,
+      title: "Spend ten units",
+      action: createAction({ capability: CAPABILITY, target: TARGET_ONE, value: 10n }),
+    }));
+    const proposal = await createAgentPlanProposal({
+      agent: AGENT,
+      objective: "Spend against a shared daily allowance",
+      steps,
+      simulatePolicy: async ({ action }) => ({
+        allowed: action.value <= dailyLimit,
+        code: action.value <= dailyLimit ? "Allowed" : "DailyValueExceeded",
+      }),
+    });
+
+    expect(proposal.validationStatus).toBe("sequence-unverified");
+    expect(steps.reduce((sum, step) => sum + step.action.value, 0n)).toBeGreaterThan(dailyLimit);
+    expect(proposal.steps.map((step) => step.decision.allowed)).toEqual([true, true]);
+    expect(proposal.executable).toBe(false);
+    expect(proposal.steps.map((step) => step.transaction)).toEqual([null, null]);
+  });
+
   it("includes execute transactions when every plan step is allowed", async () => {
     const proposal = await createAgentPlanProposal({
       agent: AGENT,
@@ -85,6 +109,7 @@ describe("createAgentPlanProposal", () => {
     });
 
     expect(proposal.executable).toBe(true);
+    expect(proposal.validationStatus).toBe("single-step-policy-allowed");
     expect(proposal.steps).toHaveLength(1);
     expect(proposal.steps[0]).toMatchObject({
       id: "step-1",
@@ -94,6 +119,22 @@ describe("createAgentPlanProposal", () => {
     expect(proposal.steps[0]!.transaction?.to).toBe(AGENT);
     expect(proposal.steps[0]!.transaction?.value).toBe(5n);
     expect(proposal.steps[0]!.transaction?.data).toMatch(/^0x[0-9a-f]+$/);
+  });
+
+  it("withholds zero-value steps whose target state dependencies were not simulated", async () => {
+    const proposal = await createAgentPlanProposal({
+      agent: AGENT,
+      objective: "Configure a target then use its new state",
+      steps: ["Configure", "Use"].map((title, index) => ({
+        id: `step-${index}`, title,
+        action: createAction({ capability: CAPABILITY, target: TARGET_ONE }),
+      })),
+      simulatePolicy: async () => ({ allowed: true, code: "Allowed" }),
+    });
+    expect(proposal.validationStatus).toBe("sequence-unverified");
+    expect(proposal.executable).toBe(false);
+    expect(proposal.steps.map((step) => step.transaction)).toEqual([null, null]);
+    expect(proposal.steps.map((step) => step.title)).toEqual(["Configure", "Use"]);
   });
 
   it("suppresses all transaction payloads when any step is denied", async () => {
@@ -129,5 +170,6 @@ describe("createAgentPlanProposal", () => {
     expect(proposal.executable).toBe(false);
     expect(proposal.steps.map((step) => step.transaction)).toEqual([null, null]);
     expect(proposal.steps.map((step) => step.decision.code)).toEqual(["Allowed", "CapabilityDenied"]);
+    expect(proposal.validationStatus).toBe("policy-denied");
   });
 });

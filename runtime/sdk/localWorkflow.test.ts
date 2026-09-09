@@ -80,6 +80,20 @@ const DENIED_INTENT_ARTIFACT = {
 };
 
 describe("createAgentOsLocalWorkflowPackage", () => {
+  it("blocks previously saved executable multi-step proposals before approval or handoff", () => {
+    const artifact = structuredClone(EXECUTABLE_PLAN_ARTIFACT);
+    artifact.steps.push({ ...artifact.steps[0]!, id: "step-2" });
+    const result = createAgentOsLocalWorkflowPackage({
+      ...PATHS, proposalJson: JSON.stringify(artifact), reviewer: REVIEWER,
+      decision: "approved", generatedAt: GENERATED_AT,
+    });
+    expect(result.passed).toBe(false);
+    expect(result.failures).toContain("multi-step proposals require sequence validation and cannot be executable");
+    expect(result.approval).toBeNull();
+    expect(result.executionBundle).toBeNull();
+    expect(result.executionHandoff).toBeNull();
+  });
+
   it("packages executable local proposal review and execution handoff evidence", () => {
     const result = createAgentOsLocalWorkflowPackage({
       ...PATHS,

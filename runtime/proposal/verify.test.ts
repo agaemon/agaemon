@@ -67,6 +67,37 @@ const VALID_DENIED_INTENT_ARTIFACT = {
 };
 
 describe("verifyAgentProposalArtifact", () => {
+  it("rejects legacy executable multi-step evidence", () => {
+    const artifact = structuredClone(VALID_EXECUTABLE_PLAN_ARTIFACT);
+    artifact.steps.push({ ...artifact.steps[0]!, id: "step-2" });
+    expect(verifyAgentProposalArtifact(JSON.stringify(artifact)).passed).toBe(false);
+  });
+
+  it.each([undefined, "single-step-policy-allowed", "sequence-verified"])(
+    "rejects executable multi-step claims regardless of metadata (%s)", (validationStatus) => {
+      const artifact = {
+        ...VALID_EXECUTABLE_PLAN_ARTIFACT, validationStatus,
+        steps: [VALID_EXECUTABLE_PLAN_ARTIFACT.steps[0], VALID_EXECUTABLE_PLAN_ARTIFACT.steps[0]],
+      };
+      expect(verifyAgentProposalArtifact(JSON.stringify(artifact)).failures).toContain(
+        "multi-step proposals require sequence validation and cannot be executable",
+      );
+    },
+  );
+
+  it("accepts unverified diagnostic sequences but rejects contradictory metadata", () => {
+    const step = { ...VALID_EXECUTABLE_PLAN_ARTIFACT.steps[0]!, transaction: null };
+    const artifact = {
+      ...VALID_EXECUTABLE_PLAN_ARTIFACT, executable: false,
+      validationStatus: "sequence-unverified", steps: [step, { ...step, id: "step-2" }],
+    };
+    expect(verifyAgentProposalArtifact(JSON.stringify(artifact)).passed).toBe(true);
+    artifact.validationStatus = "policy-denied";
+    expect(verifyAgentProposalArtifact(JSON.stringify(artifact)).failures).toContain(
+      "validationStatus must match independent policy checks",
+    );
+  });
+
   it("accepts a valid plan-backed executable proposal artifact", () => {
     expect(verifyAgentProposalArtifact(JSON.stringify(VALID_EXECUTABLE_PLAN_ARTIFACT))).toEqual({
       passed: true,

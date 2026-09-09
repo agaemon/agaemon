@@ -8,7 +8,7 @@ import {
 import { createAgentProposalOutput } from "./output.js";
 
 describe("agent proposal output fixture integration", () => {
-  it("preserves fixture decisions, action values, and transactions for an executable plan artifact", async () => {
+  it("preserves fixture decisions, action values, with suppressed transactions for an unverified sequence", async () => {
     const allowedSwap = getPolicyDecisionFixture("allowed-swap");
     const allowedMemory = getPolicyDecisionFixture("allowed-memory");
     const proposal = await createAgentPlanProposal({
@@ -43,7 +43,8 @@ describe("agent proposal output fixture integration", () => {
       plan: "artifacts/fixture-allowed-plan.json",
       objective: "Serialize allowed fixture plan",
       agent: allowedSwap.agent,
-      executable: true,
+      executable: false,
+      validationStatus: "sequence-unverified",
     });
     expect(output.steps.map((step) => step.decision)).toEqual([
       allowedSwap.decision,
@@ -53,15 +54,7 @@ describe("agent proposal output fixture integration", () => {
       allowedSwap.action.value.toString(),
       allowedMemory.action.value.toString(),
     ]);
-    expect(output.steps.map((step) => step.transaction?.to)).toEqual([
-      allowedSwap.agent,
-      allowedMemory.agent,
-    ]);
-    expect(output.steps.map((step) => step.transaction?.value)).toEqual([
-      allowedSwap.action.value.toString(),
-      allowedMemory.action.value.toString(),
-    ]);
-    expect(output.steps.every((step) => /^0x[0-9a-f]+$/.test(step.transaction?.data ?? ""))).toBe(true);
+    expect(output.steps.map((step) => step.transaction)).toEqual([null, null]);
   });
 
   it("preserves denied fixture decisions and suppresses transaction payloads in proposal JSON", async () => {

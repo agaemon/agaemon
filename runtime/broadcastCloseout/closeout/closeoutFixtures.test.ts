@@ -9,12 +9,11 @@ import {
   BROADCAST_REPORT_PATH,
   FIRST_TX_HASH,
   GENERATED_AT,
-  SECOND_TX_HASH,
   createFixtureBroadcastReceiptEvidence,
 } from "../fixtures/closeoutEvidence.js";
 
 describe("broadcast closeout fixture integration", () => {
-  it("packages verified fixture archive evidence for closeout", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("packages verified fixture archive evidence for closeout (%s)", async (fixtureId) => {
     const evidence = await createFixtureBroadcastReceiptEvidence({
       objective: "Close out fixture broadcast archive evidence",
       proposalPath: "artifacts/fixture-broadcast-closeout-proposal.json",
@@ -23,8 +22,7 @@ describe("broadcast closeout fixture integration", () => {
       approvalPath: "artifacts/fixture-broadcast-closeout-approval.json",
       sourcePath: "artifacts/fixture-broadcast-closeout-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
 
@@ -39,9 +37,8 @@ describe("broadcast closeout fixture integration", () => {
     expect(closeout.failures).toEqual([]);
     expect(closeout.report.path).toBe(BROADCAST_REPORT_PATH);
     expect(closeout.report.markdown).toContain("# Agent Proposal Execution Broadcast Report");
-    expect(closeout.report.markdown).toContain("| Transactions | 2 |");
+    expect(closeout.report.markdown).toContain("| Transactions | 1 |");
     expect(closeout.report.markdown).toContain(`| 0 | ${FIRST_TX_HASH} | 901 | success |`);
-    expect(closeout.report.markdown).toContain(`| 1 | ${SECOND_TX_HASH} | 902 | success |`);
     expect(closeout.archive.path).toBe(BROADCAST_ARCHIVE_PATH);
     expect(JSON.parse(closeout.archive.json)).toMatchObject({
       schemaVersion: 1,
@@ -53,7 +50,7 @@ describe("broadcast closeout fixture integration", () => {
         report: {
           passed: true,
           failures: [],
-          transactions: 2,
+          transactions: 1,
         },
       },
     });
@@ -85,7 +82,7 @@ describe("broadcast closeout fixture integration", () => {
     });
   });
 
-  it("blocks stale fixture archive evidence during closeout verification", async () => {
+  it.each(["allowed-swap", "allowed-memory"] as const)("blocks stale fixture archive evidence during closeout verification (%s)", async (fixtureId) => {
     const evidence = await createFixtureBroadcastReceiptEvidence({
       objective: "Block stale fixture broadcast closeout archive",
       proposalPath: "artifacts/fixture-stale-broadcast-closeout-proposal.json",
@@ -94,8 +91,7 @@ describe("broadcast closeout fixture integration", () => {
       approvalPath: "artifacts/fixture-stale-broadcast-closeout-approval.json",
       sourcePath: "artifacts/fixture-stale-broadcast-closeout-plan.json",
       fixtures: [
-        getPolicyDecisionFixture("allowed-swap"),
-        getPolicyDecisionFixture("allowed-memory"),
+        getPolicyDecisionFixture(fixtureId),
       ],
     });
     const closeout = createAgentProposalExecutionBroadcastCloseout({
