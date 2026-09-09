@@ -5,7 +5,13 @@ import {AgentCoordination} from "../src/AgentCoordination.sol";
 import {AgentDirectory} from "../src/AgentDirectory.sol";
 import {MemoryRegistry} from "../src/MemoryRegistry.sol";
 
+interface AgentCoordinationTestVm {
+    function expectRevert(bytes4 revertData) external;
+}
+
 contract AgentCoordinationTest {
+    AgentCoordinationTestVm private constant vm =
+        AgentCoordinationTestVm(address(uint160(uint256(keccak256("hevm cheat code")))));
     AgentDirectory private directory;
     MemoryRegistry private memoryRegistry;
     AgentCoordination private coordination;
@@ -41,9 +47,8 @@ contract AgentCoordinationTest {
     }
 
     function testConstructorRejectsZeroMemoryRegistry() public {
-        try new AgentCoordination(address(directory), address(0)) returns (AgentCoordination) {
-            revert("zero memory registry should fail");
-        } catch {}
+        vm.expectRevert(AgentCoordination.InvalidMemoryRegistry.selector);
+        new AgentCoordination(address(directory), address(0));
     }
 
     function testOwnerCanCreateAssignmentForActiveAgents() public {

@@ -1,4 +1,6 @@
-import { readFileSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   BASE_COMMAND_REFERENCE_SOURCE_DIRECTORIES,
@@ -133,10 +135,10 @@ describe("validateBaseOperatorCommandReferences", () => {
   it("rejects unknown operator doc command references", () => {
     const failures = validateBaseOperatorCommandReferences({
       packageJson: { scripts: { "base:execute": "tsx runtime/cli/base/execute.ts" } },
-      sources: [{ path: "docs/base-testing.md", text: "npm run base:execute\nnpm run base:missing" }],
+      sources: [{ path: "COMMANDS.md", text: "npm run base:execute\nnpm run base:missing" }],
     });
 
-    expect(failures).toEqual(["docs/base-testing.md references unknown package script base:missing"]);
+    expect(failures).toEqual(["COMMANDS.md references unknown package script base:missing"]);
   });
 
   it("rejects malformed operator source entries", () => {
@@ -154,7 +156,7 @@ describe("validateBaseOperatorCommandReferences", () => {
       sources: [{ path: "docs/architecture.md", text: "`base:execute` is part of the runtime contract." }],
     });
 
-    expect(failures).toEqual(["operator command reference source docs/architecture.md must be README.md or docs/base-testing.md"]);
+    expect(failures).toEqual(["operator command reference source docs/architecture.md must be README.md, COMMANDS.md, or docs/base-testing.md"]);
   });
 });
 
@@ -176,10 +178,10 @@ describe("validateBaseOperatorCommandInvocations", () => {
   it("rejects unknown runnable operator command invocations", () => {
     const failures = validateBaseOperatorCommandInvocations({
       packageJson: { scripts: { "base:execute": "tsx runtime/cli/base/execute.ts" } },
-      sources: [{ path: "docs/base-testing.md", text: "npm run base:execute\nnpm run base:missing" }],
+      sources: [{ path: "COMMANDS.md", text: "npm run base:execute\nnpm run base:missing" }],
     });
 
-    expect(failures).toEqual(["docs/base-testing.md references unknown package script base:missing"]);
+    expect(failures).toEqual(["COMMANDS.md references unknown package script base:missing"]);
   });
 
   it("rejects malformed operator invocation source entries", () => {
@@ -197,11 +199,18 @@ describe("validateBaseOperatorCommandInvocations", () => {
       sources: [{ path: "docs/prd.md", text: "`npm run base:execute` is required by the backlog." }],
     });
 
-    expect(failures).toEqual(["operator command reference source docs/prd.md must be README.md or docs/base-testing.md"]);
+    expect(failures).toEqual(["operator command reference source docs/prd.md must be README.md, COMMANDS.md, or docs/base-testing.md"]);
   });
 });
 
 describe("validateBaseOperatorFencedCommandInvocations", () => {
+  it("continues to accept separately supplied legacy operator docs", () => {
+    expect(validateBaseOperatorFencedCommandInvocations({
+      packageJson: { scripts: { "base:execute": "tsx runtime/cli/base/execute.ts" } },
+      sources: [{ path: "docs/base-testing.md", text: "```sh\nnpm run base:execute\n```" }],
+    })).toEqual([]);
+  });
+
   it("rejects package base scripts missing from fenced runnable operator examples", () => {
     const failures = validateBaseOperatorFencedCommandInvocations({
       packageJson: {
@@ -219,10 +228,10 @@ describe("validateBaseOperatorFencedCommandInvocations", () => {
   it("rejects unknown fenced runnable operator command examples", () => {
     const failures = validateBaseOperatorFencedCommandInvocations({
       packageJson: { scripts: { "base:execute": "tsx runtime/cli/base/execute.ts" } },
-      sources: [{ path: "docs/base-testing.md", text: "```bash\nnpm run base:execute\nnpm run base:missing\n```" }],
+      sources: [{ path: "COMMANDS.md", text: "```bash\nnpm run base:execute\nnpm run base:missing\n```" }],
     });
 
-    expect(failures).toEqual(["docs/base-testing.md references unknown package script base:missing"]);
+    expect(failures).toEqual(["COMMANDS.md references unknown package script base:missing"]);
   });
 
   it("rejects malformed fenced operator command source entries", () => {
@@ -240,30 +249,35 @@ describe("validateBaseOperatorFencedCommandInvocations", () => {
       sources: [{ path: "docs/architecture.md", text: "```bash\nnpm run base:execute\n```" }],
     });
 
-    expect(failures).toEqual(["operator command reference source docs/architecture.md must be README.md or docs/base-testing.md"]);
+    expect(failures).toEqual(["operator command reference source docs/architecture.md must be README.md, COMMANDS.md, or docs/base-testing.md"]);
   });
 });
 
 describe("collectCommandReferenceSourcePaths", () => {
-  it("collects files from docs and workflow directories only", () => {
-    expect(collectCommandReferenceSourcePaths("docs/releases").every((path) => path.startsWith("docs/releases/"))).toBe(true);
-    expect(collectCommandReferenceSourcePaths(".github/workflows").every((path) => path.startsWith(".github/workflows/"))).toBe(true);
+  it("collects supported files recursively and ignores other extensions", () => {
+    const root = mkdtempSync(join(tmpdir(), "command-references-"));
+    try {
+      mkdirSync(join(root, "nested"));
+      for (const name of ["a.md", "b.json", "c.yml", "d.yaml", "ignored.txt"]) {
+        writeFileSync(join(root, "nested", name), "fixture");
+      }
+      expect(collectCommandReferenceSourcePaths(root)).toEqual(
+        ["a.md", "b.json", "c.yml", "d.yaml"].map((name) => join(root, "nested", name)),
+      );
+      expect(() => collectCommandReferenceSourcePaths(join(root, "missing"))).toThrow();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
-  it("keeps broad and operator source constants aligned with live coverage", () => {
-    expect(BASE_COMMAND_REFERENCE_SOURCE_FILES).toEqual([
-      "README.md",
-      "docs/base-testing.md",
-      "docs/architecture.md",
-      "docs/demo/funding-ready-operator-demo.md",
-      "docs/prd.md",
-    ]);
-    expect(BASE_COMMAND_REFERENCE_SOURCE_DIRECTORIES).toEqual(["docs/releases", ".github/workflows"]);
-    expect(BASE_OPERATOR_COMMAND_REFERENCE_SOURCE_FILES).toEqual(["README.md", "docs/base-testing.md"]);
+  it("requires the shipped public documentation and workflow sources", () => {
+    expect(BASE_COMMAND_REFERENCE_SOURCE_FILES).toEqual(["README.md", "COMMANDS.md", "VALIDATION.md"]);
+    expect(BASE_COMMAND_REFERENCE_SOURCE_DIRECTORIES).toEqual([".github/workflows"]);
+    expect(BASE_OPERATOR_COMMAND_REFERENCE_SOURCE_FILES).toEqual(["README.md", "COMMANDS.md"]);
   });
 });
 
-describe("docs command reference live repository coverage", () => {
+describe("public command reference live repository coverage", () => {
   it("keeps checked base command references aligned with package scripts", () => {
     const failures = validateBaseCommandReferences({
       packageJson: readPackageJson(),

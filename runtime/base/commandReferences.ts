@@ -12,15 +12,10 @@ export interface BaseCommandReferenceValidationInput {
   sources: readonly CommandReferenceSource[];
 }
 
-export const BASE_COMMAND_REFERENCE_SOURCE_FILES = [
-  "README.md",
-  "docs/base-testing.md",
-  "docs/architecture.md",
-  "docs/demo/funding-ready-operator-demo.md",
-  "docs/prd.md",
-] as const;
-export const BASE_COMMAND_REFERENCE_SOURCE_DIRECTORIES = ["docs/releases", ".github/workflows"] as const;
-export const BASE_OPERATOR_COMMAND_REFERENCE_SOURCE_FILES = ["README.md", "docs/base-testing.md"] as const;
+// Only shipped public sources are mandatory. Internal release evidence is supplied separately.
+export const BASE_COMMAND_REFERENCE_SOURCE_FILES = ["README.md", "COMMANDS.md", "VALIDATION.md"] as const;
+export const BASE_COMMAND_REFERENCE_SOURCE_DIRECTORIES = [".github/workflows"] as const;
+export const BASE_OPERATOR_COMMAND_REFERENCE_SOURCE_FILES = ["README.md", "COMMANDS.md"] as const;
 export const BASE_COMMAND_REFERENCE_SCRIPT_NAMESPACE = BASE_PACKAGE_SCRIPT_NAMESPACE;
 
 interface ReferenceWithSource {
@@ -33,7 +28,7 @@ const commandReferencePattern = new RegExp(`\\b${escapedCommandReferenceScriptNa
 const npmRunCommandReferencePattern = new RegExp(`\\bnpm\\s+run\\s+(${escapedCommandReferenceScriptNamespace}[A-Za-z0-9:-]+)\\b`, "g");
 const markdownFencePattern = /```[^\n]*\n([\s\S]*?)```/g;
 const checkedSourceExtensions = new Set([".md", ".json", ".yml", ".yaml"]);
-const operatorCommandReferenceSourcePaths: ReadonlySet<string> = new Set(BASE_OPERATOR_COMMAND_REFERENCE_SOURCE_FILES);
+const operatorCommandReferenceSourcePaths: ReadonlySet<string> = new Set([...BASE_OPERATOR_COMMAND_REFERENCE_SOURCE_FILES, "docs/base-testing.md"]);
 
 export function collectCommandReferenceSourcePaths(root: string): string[] {
   return readdirSync(root, { recursive: true })
@@ -195,7 +190,7 @@ function validateSources(sources: readonly CommandReferenceSource[]): string | n
 function validateOperatorSources(sources: readonly CommandReferenceSource[]): string | null {
   for (const source of sources) {
     if (!operatorCommandReferenceSourcePaths.has(source.path)) {
-      return `operator command reference source ${source.path} must be README.md or docs/base-testing.md`;
+      return `operator command reference source ${source.path} must be README.md, COMMANDS.md, or docs/base-testing.md`;
     }
   }
 
