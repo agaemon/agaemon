@@ -93,8 +93,9 @@ Base Sepolia is the active validation network.
 - [`deployments/base-sepolia/latest.json`](deployments/base-sepolia/latest.json)
   - current non-secret Base Sepolia deployment manifest.
 
-Internal planning notes, release notes, and long-form docs are intentionally
-kept outside the public repository.
+Internal planning notes and release evidence are intentionally kept outside the
+public repository. [VALIDATION.md](VALIDATION.md) documents the public checkout
+checks and release prerequisites; [COMMANDS.md](COMMANDS.md) lists package commands.
 
 ## Quick Start
 
